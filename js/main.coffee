@@ -7,8 +7,11 @@ ASSETS = [
 
 game = null
 
-fighters = null
-bullets = null
+players = null
+enemies = null
+
+player_bullets = null
+enemy_bullets = null
 
 add = (inst) ->
     game.currentScene.addChild(inst)
@@ -38,25 +41,36 @@ class Player extends Sprite
         @x = game.width / 2
         @y = game.height / 2
         
-        fighters.addChild(@)
+        players.addChild(@)
     
     onenterframe: ->
         if game.frame % (game.fps / 10) == 0
-            new Bullet(@x, @y)
-    
-class Bullet extends Sprite
+            new Bullet(@x, @y, player_bullets)
+            
+class Enemy extends Sprite
     constructor: (x, y) ->
+        super(32, 32)
+        @image = game.assets[PLAYER_IMG]
+        @frame = 27
+        @scale(2, -2)
+        @x = x
+        @y = y
+        
+        enemies.addChild(@)
+
+class Bullet extends Sprite
+    constructor: (x, y, @group) ->
         super(16, 16)
         @image = game.assets[BULLET_IMG]
         @frame = 48
         @x = x
         @y = y
         
-        bullets.addChild(@)
+        @group.addChild(@)
     
     onenterframe: ->
         @y += -10
-        bullets.removeChild(@) unless isInWindow(@)
+        @group.removeChild(@) unless isInWindow(@)
 
 window.onload = ->
     game = new Game(400, 600)
@@ -67,19 +81,34 @@ window.onload = ->
         scene = game.rootScene
         scene.backgroundColor = '#ffffff'
         
-        bullets = new Group
-        add(bullets)
-        fighters = new Group
-        add(fighters)
+        player_bullets = new Group
+        add(player_bullets)
+        enemy_bullets = new Group
+        add(enemy_bullets)
+        
+        players = new Group
+        add(players)
+        enemies = new Group
+        add(enemies)
         
         player = new Player
         
+        new Enemy(game.width / 2, game.height / 3)
+        
+        scene.onenterframe = ->
+            char_sets = [[player_bullets, enemies], [enemy_bullets, players], [enemies, players]]
+            for char_set in char_sets
+                for first in char_set[0].childNodes
+                    for second in char_set[1].childNodes
+                        if first.intersect(second)
+                            alert('hit!')
+        
         bex = bey = 0
-        scene.addEventListener Event.TOUCH_START, (e) ->
+        scene.ontouchstart = (e) ->
             bex = e.x
             bey = e.y
         
-        scene.addEventListener Event.TOUCH_MOVE, (e) ->
+        scene.ontouchmove = (e) ->
             player.x += e.x - bex
             player.y += e.y - bey
             intoWindow(player)
