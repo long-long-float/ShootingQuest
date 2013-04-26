@@ -17,7 +17,6 @@ add = (inst) ->
     game.currentScene.addChild(inst)
 
 remove = (inst) ->
-    inst.onremove?()
     game.currentScene.removeChild(inst)
 
 isInWindow = (node) ->
@@ -32,46 +31,72 @@ intoWindow = (node) ->
     t = game.height - 1 - node.height
     node.y = t if node.y > t
 
-class Player extends Sprite
+class Material extends Sprite
+    constructor: (img_name, frame, width, height, @group) ->
+        super(width, height)
+        @image = game.assets[img_name]
+        @frame = frame
+        
+        @group.addChild(@)
+        
+        @hp = 1
+        @power = 1
+    
+    damage: (material) ->
+        @hp -= material.power
+        @hp = 0 if @hp <= 0
+    
+    attack: (material) ->
+        material.damage(@)
+        @damage(material)
+
+class Player extends Material
     constructor: ->
-        super(32, 32)
-        @image = game.assets[PLAYER_IMG]
-        @frame = 27
+        super(PLAYER_IMG, 27, 32, 32, players)
         @scale(2, 2)
         @x = game.width / 2
         @y = game.height / 2
-        
-        players.addChild(@)
     
     onenterframe: ->
         if game.frame % (game.fps / 10) == 0
-            new Bullet(@x, @y, player_bullets)
+            new Bullet(@x, @y + @height / 2, 0, -10, player_bullets)
+            new Bullet(@x + @width / 2, @y + @height / 2, 0, -10, player_bullets)
             
-class Enemy extends Sprite
+class Enemy extends Material
     constructor: (x, y) ->
-        super(32, 32)
-        @image = game.assets[PLAYER_IMG]
-        @frame = 27
+        super(PLAYER_IMG, 27, 32, 32, enemies)
         @scale(2, -2)
         @x = x
         @y = y
         
-        enemies.addChild(@)
+        @hp = 10
+        
+    onenterframe: ->
+        if game.frame % (game.fps / 5) == 0
+            angle = 0#@age
+            n = 72
+            for i in [1..n]
+                vx = Math.cos(angle) * 2
+                vy = Math.sin(angle) * 2
+                new Bullet(@x + @width / 4, @y + @height / 4, vx, vy, enemy_bullets)
+                angle += Math.PI * 2 / n
 
-class Bullet extends Sprite
-    constructor: (x, y, @group) ->
-        super(16, 16)
-        @image = game.assets[BULLET_IMG]
-        @frame = 48
+class Bullet extends Material
+    constructor: (x, y, @vx, @vy, group) ->
+        super(BULLET_IMG, 48, 16, 16, group)
         @x = x
         @y = y
         
-        @group.addChild(@)
+        angle = Math.atan(@vx, @vy) / Math.PI * 180
+        angle = 180 - angle if @vy > 0
+        @rotate(angle)
     
     onenterframe: ->
-        @y += -10
-        @group.removeChild(@) unless isInWindow(@)
-
+        @x += @vx
+        @y += @vy
+        #@group.removeChild(@) unless isInWindow(@)
+        @hp = 0 unless isInWindow(@)
+        
 window.onload = ->
     game = new Game(400, 600)
     game.fps = 60
@@ -81,27 +106,34 @@ window.onload = ->
         scene = game.rootScene
         scene.backgroundColor = '#ffffff'
         
-        player_bullets = new Group
-        add(player_bullets)
-        enemy_bullets = new Group
-        add(enemy_bullets)
-        
         players = new Group
         add(players)
         enemies = new Group
         add(enemies)
         
+        player_bullets = new Group
+        add(player_bullets)
+        enemy_bullets = new Group
+        add(enemy_bullets)
+        
         player = new Player
         
-        new Enemy(game.width / 2, game.height / 3)
+        new Enemy(game.width / 3 * i, game.height / 3) for i in [1..2]
         
         scene.onenterframe = ->
+            #スイープ
+            for set in [player_bullets, enemy_bullets, players, enemies]
+                for m in set.childNodes
+                    #console.log m.hp
+                    if m?.hp <= 0
+                        m.group.removeChild(m) 
+            
             char_sets = [[player_bullets, enemies], [enemy_bullets, players], [enemies, players]]
             for char_set in char_sets
                 for first in char_set[0].childNodes
                     for second in char_set[1].childNodes
                         if first.intersect(second)
-                            alert('hit!')
+                            first.attack(second)
         
         bex = bey = 0
         scene.ontouchstart = (e) ->
