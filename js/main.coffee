@@ -7,6 +7,8 @@ ASSETS = [
 
 game = null
 
+player = null
+
 players = null
 enemies = null
 
@@ -16,9 +18,16 @@ enemy_bullets = null
 Function::property = (prop, desc) ->
     Object.defineProperty @prototype, prop, desc
 
-p = (val) ->
-    console.log val
-    val
+p = ->
+    ret = []
+    for v in arguments
+        console.log v
+        ret.push(v)
+    if ret.length == 1 then ret[0] else ret
+
+normalize = (x, y) ->
+    len = Math.sqrt(x * x + y * y)
+    [x / len, y / len]
 
 add = (node) ->
     game.currentScene.addChild(node)
@@ -106,15 +115,48 @@ class Enemy extends Material
         
         @hp = 10
         
+        @mover = new Mover
+        @shooter = new Shooter
+        
     onenterframe: ->
         if game.frame % (game.fps / 5) == 0
-            angle = @age
-            n = 36
-            for i in [1..n]
-                vx = Math.cos(angle) * 2
-                vy = Math.sin(angle) * 2
-                new Bullet(56, @rx, @ry, vx, vy, enemy_bullets)
-                angle += Math.PI * 2 / n
+            @shooter.do(@)
+        
+        @mover.do(@)
+
+class Mover
+    do: ->
+
+class StraightMover extends Mover
+    constructor: (@vx, @vy)->
+    
+    do: (material)->
+        material.rx += @vx
+        material.ry += @vy
+        @hp = 0 unless isInWindow(@)
+
+class AimPlayerMover extends Mover
+    constructor: (@v) ->
+    
+    do: (material) ->
+        [vx, vy] = normalize(material.rx - player.rx, material.ry - player.ry)
+        p "#{vx}, #{vy}"
+        material.rx += vx * @v
+        material.ry += vy * @v
+
+class Shooter
+    do: ->
+
+class RadialShooter extends Shooter
+    constructor: (@density) ->
+    
+    do: (material) ->
+        angle = material.age
+        for i in [1..@density]
+            vx = Math.cos(angle) * 2
+            vy = Math.sin(angle) * 2
+            new Bullet(56, material.rx, material.ry, vx, vy, enemy_bullets)
+            angle += Math.PI * 2 / @density
 
 class Bullet extends Material
     constructor: (frame, x, y, @vx, @vy, group) ->
@@ -127,7 +169,6 @@ class Bullet extends Material
         @rotate(angle)
     
     onenterframe: ->
-    
         @rx += @vx
         @ry += @vy
         #@group.removeChild(@) unless isInWindow(@)
@@ -154,8 +195,6 @@ window.onload = ->
         
         player = new Player
         
-        new Enemy(game.width / 3 * i, game.height / 3) for i in [1..2]
-        
         scene.onenterframe = ->
             #スイープ
             for set in [player_bullets, enemy_bullets, players, enemies]
@@ -170,6 +209,15 @@ window.onload = ->
                     for second in char_set[1].childNodes
                         if first.hit_check(second)
                             first.attack(second)
+            
+            if game.frame % (game.fps * 1) == 0
+                e = new Enemy(0, 0)
+                e.shooter = new RadialShooter(10)
+                e.mover = new StraightMover(2, 2)
+                
+                e = new Enemy(game.width, 0)
+                e.shooter = new RadialShooter(20)
+                e.mover = new AimPlayerMover(-2, 2)
         
         bex = bey = 0
         scene.ontouchstart = (e) ->
