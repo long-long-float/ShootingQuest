@@ -16,26 +16,30 @@ enemy_bullets = null
 Function::property = (prop, desc) ->
     Object.defineProperty @prototype, prop, desc
 
-add = (inst) ->
-    game.currentScene.addChild(inst)
+p = (val) ->
+    console.log val
+    val
 
-remove = (inst) ->
-    game.currentScene.removeChild(inst)
+add = (node) ->
+    game.currentScene.addChild(node)
 
-isInWindow = (node) ->
-    0 <= node.x < game.width and 0 <= node.y < game.height
+remove = (node) ->
+    game.currentScene.removeChild(node)
 
-intoWindow = (node) ->
-    node.x = 0 if node.x < 0
-    t = game.width - 1 - node.width
-    node.x = t if node.x > t
+isInWindow = (material) ->
+    0 <= material.rx < game.width and 0 <= material.ry < game.height
+
+intoWindow = (material) ->
+    material.rx = 0 if material.rx < 0
+    t = game.width - 1
+    material.rx = t if material.rx > t
     
-    node.y = 0 if node.y < 0
-    t = game.height - 1 - node.height
-    node.y = t if node.y > t
+    material.ry = 0 if material.ry < 0
+    t = game.height - 1
+    material.ry = t if material.ry > t
 
 class Material extends Sprite
-    constructor: (img_name, frame, width, height, @group) ->
+    constructor: (img_name, frame, width, height, @rradius, @group) ->
         super(width, height)
         @image = game.assets[img_name]
         @frame = frame
@@ -60,22 +64,42 @@ class Material extends Sprite
     @property 'ry',
         get: -> @y + @height / 2
         set: (y) -> @y = y - @height / 2
+    
+    ondying: ->
+    
+    hit_check: (material) ->
+        rdist = Math.pow(@rx - material.rx, 2) + Math.pow(@ry - material.ry, 2)
+        dist = Math.pow(@rradius + material.rradius, 2)
+        #p "#{rdist} : #{dist}"
+        (rdist <= dist)
 
 class Player extends Material
     constructor: ->
-        super(PLAYER_IMG, 27, 32, 32, players)
+        super(PLAYER_IMG, 27, 32, 32, 4, players)
         @scale(2, 2)
         @rx = game.width / 2
         @ry = game.height / 2
-    
+        
+        @core = new Material(BULLET_IMG, 20, 16, 16, 0, game.currentScene)
+        @core.scale(@rradius * 2 / @core.width, @rradius * 2 / @core.height)
+        @core.rx = @rx
+        @core.ry = @ry
+        
     onenterframe: ->
+        @core.rx = @rx
+        @core.ry = @ry
+        
         if game.frame % (game.fps / 10) == 0
-            new Bullet(@rx - @width / 2, @ry - @height / 2, 0, -10, player_bullets)
-            new Bullet(@rx + @width / 2, @ry - @height / 2, 0, -10, player_bullets)
+            for i in [-2..2]
+                new Bullet(48, @rx + (@width / 4) * i, @ry - @height / 2, 0, -10, player_bullets)
+    
+    ondying: ->
+        remove(@core)
+        
             
 class Enemy extends Material
     constructor: (x, y) ->
-        super(PLAYER_IMG, 27, 32, 32, enemies)
+        super(PLAYER_IMG, 27, 32, 32, 16, enemies)
         @scale(2, -2)
         @rx = x
         @ry = y
@@ -84,17 +108,17 @@ class Enemy extends Material
         
     onenterframe: ->
         if game.frame % (game.fps / 5) == 0
-            angle = 0#@age
-            n = 72
+            angle = @age
+            n = 36
             for i in [1..n]
                 vx = Math.cos(angle) * 2
                 vy = Math.sin(angle) * 2
-                new Bullet(@rx, @ry, vx, vy, enemy_bullets)
+                new Bullet(56, @rx, @ry, vx, vy, enemy_bullets)
                 angle += Math.PI * 2 / n
 
 class Bullet extends Material
-    constructor: (x, y, @vx, @vy, group) ->
-        super(BULLET_IMG, 48, 16, 16, group)
+    constructor: (frame, x, y, @vx, @vy, group) ->
+        super(BULLET_IMG, frame, 16, 16, 4, group)
         @rx = x
         @ry = y
         
@@ -103,6 +127,7 @@ class Bullet extends Material
         @rotate(angle)
     
     onenterframe: ->
+    
         @rx += @vx
         @ry += @vy
         #@group.removeChild(@) unless isInWindow(@)
@@ -135,15 +160,15 @@ window.onload = ->
             #スイープ
             for set in [player_bullets, enemy_bullets, players, enemies]
                 for m in set.childNodes
-                    #console.log m.hp
                     if m?.hp <= 0
-                        m.group.removeChild(m) 
+                        m.ondying()
+                        m.group.removeChild(m)
             
             char_sets = [[player_bullets, enemies], [enemy_bullets, players], [enemies, players]]
             for char_set in char_sets
                 for first in char_set[0].childNodes
                     for second in char_set[1].childNodes
-                        if first.intersect(second)
+                        if first.hit_check(second)
                             first.attack(second)
         
         bex = bey = 0
@@ -152,8 +177,8 @@ window.onload = ->
             bey = e.y
         
         scene.ontouchmove = (e) ->
-            player.x += e.x - bex
-            player.y += e.y - bey
+            player.rx += e.x - bex
+            player.ry += e.y - bey
             intoWindow(player)
             
             bex = e.x
