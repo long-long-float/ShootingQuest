@@ -13,6 +13,9 @@ enemies = null
 player_bullets = null
 enemy_bullets = null
 
+Function::property = (prop, desc) ->
+    Object.defineProperty @prototype, prop, desc
+
 add = (inst) ->
     game.currentScene.addChild(inst)
 
@@ -49,25 +52,33 @@ class Material extends Sprite
     attack: (material) ->
         material.damage(@)
         @damage(material)
+    
+    @property 'rx',
+        get: -> @x + @width / 2
+        set: (x) -> @x = x - @width / 2
+    
+    @property 'ry',
+        get: -> @y + @height / 2
+        set: (y) -> @y = y - @height / 2
 
 class Player extends Material
     constructor: ->
         super(PLAYER_IMG, 27, 32, 32, players)
         @scale(2, 2)
-        @x = game.width / 2
-        @y = game.height / 2
+        @rx = game.width / 2
+        @ry = game.height / 2
     
     onenterframe: ->
         if game.frame % (game.fps / 10) == 0
-            new Bullet(@x, @y + @height / 2, 0, -10, player_bullets)
-            new Bullet(@x + @width / 2, @y + @height / 2, 0, -10, player_bullets)
+            new Bullet(@rx - @width / 2, @ry - @height / 2, 0, -10, player_bullets)
+            new Bullet(@rx + @width / 2, @ry - @height / 2, 0, -10, player_bullets)
             
 class Enemy extends Material
     constructor: (x, y) ->
         super(PLAYER_IMG, 27, 32, 32, enemies)
         @scale(2, -2)
-        @x = x
-        @y = y
+        @rx = x
+        @ry = y
         
         @hp = 10
         
@@ -78,22 +89,22 @@ class Enemy extends Material
             for i in [1..n]
                 vx = Math.cos(angle) * 2
                 vy = Math.sin(angle) * 2
-                new Bullet(@x + @width / 4, @y + @height / 4, vx, vy, enemy_bullets)
+                new Bullet(@rx, @ry, vx, vy, enemy_bullets)
                 angle += Math.PI * 2 / n
 
 class Bullet extends Material
     constructor: (x, y, @vx, @vy, group) ->
         super(BULLET_IMG, 48, 16, 16, group)
-        @x = x
-        @y = y
+        @rx = x
+        @ry = y
         
         angle = Math.atan(@vx, @vy) / Math.PI * 180
         angle = 180 - angle if @vy > 0
         @rotate(angle)
     
     onenterframe: ->
-        @x += @vx
-        @y += @vy
+        @rx += @vx
+        @ry += @vy
         #@group.removeChild(@) unless isInWindow(@)
         @hp = 0 unless isInWindow(@)
         

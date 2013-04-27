@@ -18,6 +18,10 @@
 
   enemy_bullets = null;
 
+  Function.prototype.property = function(prop, desc) {
+    return Object.defineProperty(this.prototype, prop, desc);
+  };
+
   add = function(inst) {
     return game.currentScene.addChild(inst);
   };
@@ -76,6 +80,24 @@
       return this.damage(material);
     };
 
+    Material.property('rx', {
+      get: function() {
+        return this.x + this.width / 2;
+      },
+      set: function(x) {
+        return this.x = x - this.width / 2;
+      }
+    });
+
+    Material.property('ry', {
+      get: function() {
+        return this.y + this.height / 2;
+      },
+      set: function(y) {
+        return this.y = y - this.height / 2;
+      }
+    });
+
     return Material;
 
   })(Sprite);
@@ -86,14 +108,14 @@
     function Player() {
       Player.__super__.constructor.call(this, PLAYER_IMG, 27, 32, 32, players);
       this.scale(2, 2);
-      this.x = game.width / 2;
-      this.y = game.height / 2;
+      this.rx = game.width / 2;
+      this.ry = game.height / 2;
     }
 
     Player.prototype.onenterframe = function() {
       if (game.frame % (game.fps / 10) === 0) {
-        new Bullet(this.x, this.y + this.height / 2, 0, -10, player_bullets);
-        return new Bullet(this.x + this.width / 2, this.y + this.height / 2, 0, -10, player_bullets);
+        new Bullet(this.rx - this.width / 2, this.ry - this.height / 2, 0, -10, player_bullets);
+        return new Bullet(this.rx + this.width / 2, this.ry - this.height / 2, 0, -10, player_bullets);
       }
     };
 
@@ -107,8 +129,8 @@
     function Enemy(x, y) {
       Enemy.__super__.constructor.call(this, PLAYER_IMG, 27, 32, 32, enemies);
       this.scale(2, -2);
-      this.x = x;
-      this.y = y;
+      this.rx = x;
+      this.ry = y;
       this.hp = 10;
     }
 
@@ -122,7 +144,7 @@
         for (i = _i = 1; 1 <= n ? _i <= n : _i >= n; i = 1 <= n ? ++_i : --_i) {
           vx = Math.cos(angle) * 2;
           vy = Math.sin(angle) * 2;
-          new Bullet(this.x + this.width / 4, this.y + this.height / 4, vx, vy, enemy_bullets);
+          new Bullet(this.rx, this.ry, vx, vy, enemy_bullets);
           _results.push(angle += Math.PI * 2 / n);
         }
         return _results;
@@ -142,8 +164,8 @@
       this.vx = vx;
       this.vy = vy;
       Bullet.__super__.constructor.call(this, BULLET_IMG, 48, 16, 16, group);
-      this.x = x;
-      this.y = y;
+      this.rx = x;
+      this.ry = y;
       angle = Math.atan(this.vx, this.vy) / Math.PI * 180;
       if (this.vy > 0) {
         angle = 180 - angle;
@@ -152,8 +174,8 @@
     }
 
     Bullet.prototype.onenterframe = function() {
-      this.x += this.vx;
-      this.y += this.vy;
+      this.rx += this.vx;
+      this.ry += this.vy;
       if (!isInWindow(this)) {
         return this.hp = 0;
       }
