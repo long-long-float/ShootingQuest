@@ -29,6 +29,15 @@ normalize = (x, y) ->
     len = Math.sqrt(x * x + y * y)
     [x / len, y / len]
 
+to_angle = (x, y) ->
+    Math.atan2(y, x) + Math.PI / 2
+
+to_angle_material = (mat1, mat2) ->
+    to_angle(mat2.rx - mat1.rx, mat2.ry - mat1.ry)
+
+to_vec = (angle) ->
+    [Math.cos(angle - Math.PI / 2), Math.sin(angle - Math.PI / 2)]
+
 add = (node) ->
     game.currentScene.addChild(node)
 
@@ -136,27 +145,29 @@ class StraightMover extends Mover
         @hp = 0 unless isInWindow(@)
 
 class AimPlayerMover extends Mover
-    constructor: (@v) ->
+    #mat != nullの時固定
+    constructor: (@v, @mat = null) ->
+        @fixed_v = normalize(player.rx - @mat.rx, player.ry - @mat.ry)
     
     do: (material) ->
-        [vx, vy] = normalize(material.rx - player.rx, material.ry - player.ry)
-        p "#{vx}, #{vy}"
+        [vx, vy] = if @mat? then @fixed_v else normalize(player.rx - material.rx, player.ry - material.ry)
         material.rx += vx * @v
         material.ry += vy * @v
 
 class Shooter
     do: ->
 
-class RadialShooter extends Shooter
-    constructor: (@density) ->
+class StraightShooter extends Shooter
+    constructor: (@way, @space) ->
+        @px = player.rx
+        @py = player.ry
     
     do: (material) ->
-        angle = material.age
-        for i in [1..@density]
-            vx = Math.cos(angle) * 2
-            vy = Math.sin(angle) * 2
+        angle = to_angle(@px - material.rx, @py - material.ry) + (if @way % 2 == 0 then @space / 2 else @space) * Math.floor(@way / 2)
+        for i in [1..@way]
+            [vx, vy] = to_vec(angle).map (e) -> e * 6
             new Bullet(56, material.rx, material.ry, vx, vy, enemy_bullets)
-            angle += Math.PI * 2 / @density
+            angle -= @space
 
 class Bullet extends Material
     constructor: (frame, x, y, @vx, @vy, group) ->
@@ -164,9 +175,7 @@ class Bullet extends Material
         @rx = x
         @ry = y
         
-        angle = Math.atan(@vx, @vy) / Math.PI * 180
-        angle = 180 - angle if @vy > 0
-        @rotate(angle)
+        @rotate(to_angle(@vx, @vy) / Math.PI * 180)
     
     onenterframe: ->
         @rx += @vx
@@ -211,13 +220,14 @@ window.onload = ->
                             first.attack(second)
             
             if game.frame % (game.fps * 1) == 0
+                ->
                 e = new Enemy(0, 0)
-                e.shooter = new RadialShooter(10)
-                e.mover = new StraightMover(2, 2)
+                e.shooter = new StraightShooter(2, Math.PI / 10)
+                e.mover = new AimPlayerMover(4, e)
                 
                 e = new Enemy(game.width, 0)
-                e.shooter = new RadialShooter(20)
-                e.mover = new AimPlayerMover(-2, 2)
+                e.shooter = new StraightShooter(2, Math.PI / 10)
+                e.mover = new AimPlayerMover(4, e)
         
         bex = bey = 0
         scene.ontouchstart = (e) ->
