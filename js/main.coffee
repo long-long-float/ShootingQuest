@@ -3,7 +3,7 @@ enchant()
 ASSETS = [
     PLAYER_IMG = 'player.png', 
     BULLET_IMG = 'icon0.png'
-    ]
+]
 
 game = null
 
@@ -18,12 +18,21 @@ enemy_bullets = null
 Function::property = (prop, desc) ->
     Object.defineProperty @prototype, prop, desc
 
-p = ->
+puts = ->
     ret = []
     for v in arguments
         console.log v
         ret.push(v)
     if ret.length == 1 then ret[0] else ret
+
+rand = (min, max) ->
+    unless max?
+        max = min
+        min = 0
+    min = Math.floor(min)
+    max = Math.floor(max)
+    d = max - min
+    unless d == 0 then min + Math.floor(Math.random() * d) % d else min
 
 normalize = (x, y) ->
     len = Math.sqrt(x * x + y * y)
@@ -66,6 +75,9 @@ class Material extends Sprite
         
         @hp = 1
         @power = 1
+        
+        @vx = 0
+        @vy = 0
     
     damage: (material) ->
         @hp -= material.power
@@ -90,20 +102,29 @@ class Material extends Sprite
         dist = Math.pow(@rradius + material.rradius, 2)
         #p "#{rdist} : #{dist}"
         (rdist <= dist)
+    
+    onenterframe: ->
+        @rx += @vx
+        @ry += @vy
+    
+    update_rotation: ->
+        @rotation = to_angle(@vx, @vy) / Math.PI * 180
 
 class Player extends Material
     constructor: ->
-        super(PLAYER_IMG, 27, 32, 32, 4, players)
+        super(PLAYER_IMG, 27, 32, 32, 2, players)
         @scale(2, 2)
         @rx = game.width / 2
         @ry = game.height / 2
         
         @core = new Material(BULLET_IMG, 20, 16, 16, 0, game.currentScene)
-        @core.scale(@rradius * 2 / @core.width, @rradius * 2 / @core.height)
+        @core.scale(@rradius * 4 / @core.width, @rradius * 4 / @core.height)
         @core.rx = @rx
         @core.ry = @ry
         
     onenterframe: ->
+        super
+        
         @core.rx = @rx
         @core.ry = @ry
         
@@ -114,10 +135,9 @@ class Player extends Material
     ondying: ->
         remove(@core)
         
-            
 class Enemy extends Material
     constructor: (x, y) ->
-        super(PLAYER_IMG, 27, 32, 32, 16, enemies)
+        super(PLAYER_IMG, 0, 32, 32, 16, enemies)
         @scale(2, -2)
         @rx = x
         @ry = y
@@ -128,58 +148,64 @@ class Enemy extends Material
         @shooter = new Shooter
         
     onenterframe: ->
-        if game.frame % (game.fps / 5) == 0
-            @shooter.do(@)
+        super
         
-        @mover.do(@)
-
+        @update_rotation()
+        
+        if game.frame % (game.fps / 5) == 0
+            @shooter.do()
+        
+        @mover.do()
+        
 class Mover
     do: ->
 
 class StraightMover extends Mover
-    constructor: (@vx, @vy)->
+    constructor: (@parent, vx, vy)->
+        @parent.vx = vx
+        @parent.vy = vy
     
-    do: (material)->
-        material.rx += @vx
-        material.ry += @vy
+    do: ->
         @hp = 0 unless isInWindow(@)
 
-class AimPlayerMover extends Mover
-    #mat != nullの時固定
-    constructor: (@v, @mat = null) ->
-        @fixed_v = normalize(player.rx - @mat.rx, player.ry - @mat.ry)
-    
-    do: (material) ->
-        [vx, vy] = if @mat? then @fixed_v else normalize(player.rx - material.rx, player.ry - material.ry)
-        material.rx += vx * @v
-        material.ry += vy * @v
+class AimStraightMover extends Mover
+    constructor: (@parent, @v, @fixed) ->
+        @set_velocity() if @fixed
+
+    do: ->
+        @set_velocity() unless @fixed
+
+    set_velocity: ->
+        [@parent.vx, @parent.vy] = normalize(player.rx - @parent.rx, player.ry - @parent.ry).map ((v) -> v * @v), @
+        
 
 class Shooter
     do: ->
 
 class StraightShooter extends Shooter
-    constructor: (@way, @space) ->
+    constructor: (@parent, @way, @space) ->
         @px = player.rx
         @py = player.ry
     
-    do: (material) ->
-        angle = to_angle(@px - material.rx, @py - material.ry) + (if @way % 2 == 0 then @space / 2 else @space) * Math.floor(@way / 2)
+    do: ->
+        angle = to_angle(@px - @parent.rx, @py - @parent.ry) + (if @way % 2 == 0 then @space / 2 else @space) * Math.floor(@way / 2)
         for i in [1..@way]
             [vx, vy] = to_vec(angle).map (e) -> e * 6
-            new Bullet(56, material.rx, material.ry, vx, vy, enemy_bullets)
+            new Bullet(56, @parent.rx, @parent.ry, vx, vy, enemy_bullets)
             angle -= @space
 
 class Bullet extends Material
-    constructor: (frame, x, y, @vx, @vy, group) ->
+    constructor: (frame, x, y, vx, vy, group) ->
         super(BULLET_IMG, frame, 16, 16, 4, group)
         @rx = x
         @ry = y
         
-        @rotate(to_angle(@vx, @vy) / Math.PI * 180)
-    
+        @vx = vx
+        @vy = vy
+        
     onenterframe: ->
-        @rx += @vx
-        @ry += @vy
+        super 
+        @update_rotation()
         #@group.removeChild(@) unless isInWindow(@)
         @hp = 0 unless isInWindow(@)
         
@@ -219,15 +245,20 @@ window.onload = ->
                         if first.hit_check(second)
                             first.attack(second)
             
-            if game.frame % (game.fps * 1) == 0
-                ->
-                e = new Enemy(0, 0)
-                e.shooter = new StraightShooter(2, Math.PI / 10)
-                e.mover = new AimPlayerMover(4, e)
-                
-                e = new Enemy(game.width, 0)
-                e.shooter = new StraightShooter(2, Math.PI / 10)
-                e.mover = new AimPlayerMover(4, e)
+            #敵が出てくる場所
+            w = game.width
+            h = game.height
+            positions = [
+                ([x * w / 5, 0] for x in [0..5])...,
+                [0, h / 4],
+                [w, h / 4]
+            ]
+            if game.frame % (game.fps * rand(1, 3)) == 0
+                for i in [0..rand(1, 2)]
+                    p = positions[rand(0, positions.length)]
+                    e = new Enemy(p[0], p[1])
+                    e.shooter = new StraightShooter(e, 6, Math.PI / 60)
+                    e.mover = new AimStraightMover(e, 4, true)
         
         bex = bey = 0
         scene.ontouchstart = (e) ->
