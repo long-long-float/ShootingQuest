@@ -22,6 +22,10 @@ bind_shooter = (klass, args...) ->
     (parent, level) ->
         new klass(parent, level, args...)
 
+var_dump = (obj, max_length = 20) ->
+    ("#{key} : #{val}" for key, val of obj).filter (e) -> 
+        !(typeof e == 'string' || e instanceof String) or e.length <= max_length
+
 puts = ->
     ret = []
     for v in arguments
@@ -210,9 +214,8 @@ class AimStraightShooter extends Shooter
         @fixed_angle = @make_init_angle() if @fixed
     
     do: ->
-        @way = (@odd_way ? 1 : 0) + @level * 2
-        @space = Math.PI / @level
-        angle = @make_init_angle() unless @fixed
+        angle = if @fixed then @fixed_angle else @make_init_angle()
+        
         for i in [1..@way]
             #ここどうすんねんΣ(-o-)
             [vx, vy] = to_vec(angle).map (e) -> e * 6
@@ -220,6 +223,8 @@ class AimStraightShooter extends Shooter
             angle -= @space
     
     make_init_angle: ->
+        @way = (@odd_way ? 1 : 0) + @level * 2
+        @space = Math.PI / @level
         to_angle(@px - @parent.rx, @py - @parent.ry) + (if @way % 2 == 0 then @space / 2 else @space) * Math.floor(@way / 2)
 
 class ShotShooter extends Shooter
@@ -303,14 +308,14 @@ window.onload = ->
                 bind_shooter(StraightShooter, false, 0, 1)
                 bind_shooter(AimStraightShooter, true, true)
                 bind_shooter(AimStraightShooter, false, true)
-                #bind_shooter(ShotShooter)
+                bind_shooter(ShotShooter)
             ]
             if game.frame % (game.fps * rand(1, 3)) == 0
                 for i in [0..rand(1, 2)]
                     p = positions[rand(0, positions.length)]
                     e = new Enemy(p[0], p[1])
                     #e.shooter = new StraightShooter(e, 6, Math.PI / 60, 0, 1)
-                    e.shooter = shooters.choise()(e, 4)
+                    e.shooter = shooters.choise()(e, 2)
                     #e.mover = new AimStraightMover(e, 4, true)
             
             #十字キーによる移動
