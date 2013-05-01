@@ -18,6 +18,10 @@ enemy_bullets = null
 Function::property = (prop, desc) ->
     Object.defineProperty @prototype, prop, desc
 
+bind_shooter = (klass, args...) ->
+    (parent, level) ->
+        new klass(parent, level, args...)
+
 puts = ->
     ret = []
     for v in arguments
@@ -33,6 +37,9 @@ rand = (min, max) ->
     max = Math.floor(max)
     d = max - min
     unless d == 0 then min + Math.floor(Math.random() * d) % d else min
+    
+Array.prototype.choise = ->
+    @[Math.floor(Math.random() * @length) % @length]
 
 normalize = (x, y) ->
     len = Math.sqrt(x * x + y * y)
@@ -182,28 +189,30 @@ class AimStraightMover extends Mover
         [@parent.vx, @parent.vy] = normalize(player.rx - @parent.rx, player.ry - @parent.ry).map ((v) -> v * @v), @
         
 class Shooter
-    constructor: ->
-        @level = 0
     do: ->
 
 class StraightShooter extends Shooter
-    constructor: (@parent, @way, @space, @vx, @vy) ->
+    constructor: (@parent, @level, @odd_way, @vx, @vy) ->
     
     do: ->
-        angle = to_angle(@xv, @vy) + (if @way % 2 == 0 then @space / 2 else @space) * Math.floor(@way / 2)
-        for i in [1..@way]
+        way = (@odd_way ? 1 : 0) + @level * 2
+        space = Math.PI / @level
+        angle = to_angle(@xv, @vy) + (if way % 2 == 0 then space / 2 else space) * Math.floor(way / 2)
+        for i in [1..way]
             [vx, vy] = to_vec(angle).map (e) -> e * 6
             new Bullet(56, @parent.rx, @parent.ry, vx, vy, enemy_bullets)
-            angle -= @space
+            angle -= space
 
 class AimStraightShooter extends Shooter
-    constructor: (@parent, @way, @space, @fixed) ->
+    constructor: (@parent, @level, @odd_way, @fixed) ->
         @px = player.rx
         @py = player.ry
-        @fixed_angle = make_init_angle() if @fixed
+        @fixed_angle = @make_init_angle() if @fixed
     
     do: ->
-        angle = make_init_angle() unless @fixed
+        @way = (@odd_way ? 1 : 0) + @level * 2
+        @space = Math.PI / @level
+        angle = @make_init_angle() unless @fixed
         for i in [1..@way]
             #ここどうすんねんΣ(-o-)
             [vx, vy] = to_vec(angle).map (e) -> e * 6
@@ -214,15 +223,16 @@ class AimStraightShooter extends Shooter
         to_angle(@px - @parent.rx, @py - @parent.ry) + (if @way % 2 == 0 then @space / 2 else @space) * Math.floor(@way / 2)
 
 class ShotShooter extends Shooter
-    constructor: (@parent, @space) ->
+    constructor: (@parent, @level) ->
     
     do: ->
         angle = 0
-        for i in [1..(Math.PI * 2 / @space)]
+        space = Math.PI / @level
+        for i in [1..(Math.PI * 2 / space)]
             
             [vx, vy] = to_vec(angle).map (e) -> e * 2
             new Bullet(56, @parent.rx, @parent.ry, vx, vy, enemy_bullets)
-            angle -= @space * Math.random() * 2
+            angle -= space * Math.random() * 2
     
 
 class Bullet extends Material
@@ -261,10 +271,6 @@ window.onload = ->
         
         player = new Player
         
-        e = new Enemy(game.width / 3, game.height / 3)
-        e.shooter = new ShotShooter(e, Math.PI / 30)
-        e.mover = new StraightMover(e, 0, -2)
-        
         scene.onenterframe = ->
             #スイープ
             for group in [players, enemies, player_bullets, enemy_bullets]
@@ -291,12 +297,20 @@ window.onload = ->
                 [0, h / 4],
                 [w, h / 4]
             ]
+            #束縛
+            shooters = [
+                bind_shooter(StraightShooter, true, 0, 1)
+                bind_shooter(StraightShooter, false, 0, 1)
+                bind_shooter(AimStraightShooter, true, true)
+                bind_shooter(AimStraightShooter, false, true)
+                #bind_shooter(ShotShooter)
+            ]
             if game.frame % (game.fps * rand(1, 3)) == 0
                 for i in [0..rand(1, 2)]
                     p = positions[rand(0, positions.length)]
                     e = new Enemy(p[0], p[1])
                     #e.shooter = new StraightShooter(e, 6, Math.PI / 60, 0, 1)
-                    e.shooter = new ShotShooter(e, Math.PI)
+                    e.shooter = shooters.choise()(e, 4)
                     #e.mover = new AimStraightMover(e, 4, true)
             
             #十字キーによる移動
