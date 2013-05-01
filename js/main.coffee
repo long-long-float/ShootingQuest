@@ -296,8 +296,21 @@ window.onload = ->
                     p = positions[rand(0, positions.length)]
                     e = new Enemy(p[0], p[1])
                     #e.shooter = new StraightShooter(e, 6, Math.PI / 60, 0, 1)
-                    e.shooter = new ShotShooter(e, Math.PI / 10)
+                    e.shooter = new ShotShooter(e, Math.PI)
                     #e.mover = new AimStraightMover(e, 4, true)
+            
+            #十字キーによる移動
+            v = 2
+            if game.input.up
+                player.ry -= v
+            if game.input.down
+                player.ry += v
+            if game.input.left
+                player.rx -= v
+            if game.input.right
+                player.rx += v
+            
+            intoWindow(player)
         
         bex = bey = 0
         scene.ontouchstart = (e) ->
@@ -307,7 +320,6 @@ window.onload = ->
         scene.ontouchmove = (e) ->
             player.rx += e.x - bex
             player.ry += e.y - bey
-            intoWindow(player)
             
             bex = e.x
             bey = e.y

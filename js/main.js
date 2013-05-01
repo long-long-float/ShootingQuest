@@ -464,7 +464,7 @@
       e.shooter = new ShotShooter(e, Math.PI / 30);
       e.mover = new StraightMover(e, 0, -2);
       scene.onenterframe = function() {
-        var first, group, group_set, group_sets, h, i, m, p, positions, second, w, x, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _n, _ref, _ref1, _ref2, _ref3, _ref4, _results;
+        var first, group, group_set, group_sets, h, i, m, p, positions, second, v, w, x, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _n, _ref, _ref1, _ref2, _ref3, _ref4;
 
         _ref = [players, enemies, player_bullets, enemy_bullets];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -508,14 +508,26 @@
             return _results;
           })()).concat([[0, h / 4]], [[w, h / 4]]);
         if (game.frame % (game.fps * rand(1, 3)) === 0) {
-          _results = [];
           for (i = _n = 0, _ref4 = rand(1, 2); 0 <= _ref4 ? _n <= _ref4 : _n >= _ref4; i = 0 <= _ref4 ? ++_n : --_n) {
             p = positions[rand(0, positions.length)];
             e = new Enemy(p[0], p[1]);
-            _results.push(e.shooter = new ShotShooter(e, Math.PI / 10));
+            e.shooter = new ShotShooter(e, Math.PI);
           }
-          return _results;
         }
+        v = 2;
+        if (game.input.up) {
+          player.ry -= v;
+        }
+        if (game.input.down) {
+          player.ry += v;
+        }
+        if (game.input.left) {
+          player.rx -= v;
+        }
+        if (game.input.right) {
+          player.rx += v;
+        }
+        return intoWindow(player);
       };
       bex = bey = 0;
       scene.ontouchstart = function(e) {
@@ -525,7 +537,6 @@
       return scene.ontouchmove = function(e) {
         player.rx += e.x - bex;
         player.ry += e.y - bey;
-        intoWindow(player);
         bex = e.x;
         return bey = e.y;
       };
