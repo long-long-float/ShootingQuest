@@ -324,6 +324,10 @@
       return this.mover["do"]();
     };
 
+    Enemy.prototype.ondying = function() {
+      return exp.value += 1;
+    };
+
     return Enemy;
 
   })(Material);
@@ -551,9 +555,10 @@
 
     function Gauge(x, y, width, height, _value) {
       this._value = _value;
+      Gauge.__super__.constructor.apply(this, arguments);
       this.x = x;
       this.y = y;
-      this.width = width;
+      this.width = this.max_width = width;
       this.height = height;
       this.backgroundColor = '#00ff00';
       this.max_value = this._value;
@@ -565,7 +570,7 @@
       },
       set: function(value) {
         this._value = value;
-        return this.width = this._value / this.max_value;
+        return this.width = this.max_width * this._value / this.max_value;
       }
     });
 
@@ -609,7 +614,8 @@
       add(player_bullets);
       enemy_bullets = new Group;
       add(enemy_bullets);
-      exp = new Gauge(0, 0, game.width, 30);
+      exp = new Gauge(0, 0, game.width, 30, 30);
+      exp.value = 0;
       add(exp);
       player = new Player;
       w = game.width;

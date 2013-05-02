@@ -202,6 +202,9 @@ class Enemy extends Material
             @shooter.do()
         
         @mover.do()
+    
+    ondying: ->
+        exp.value += 1
         
 class Mover
     do: ->
@@ -292,9 +295,10 @@ class AimBullet extends Bullet
 
 class Gauge extends Entity
     constructor: (x, y, width, height, @_value) ->
+        super
         @x = x;
         @y = y;
-        @width = width
+        @width = @max_width = width
         @height = height
         @backgroundColor = '#00ff00'
         
@@ -304,9 +308,8 @@ class Gauge extends Entity
         get: -> @_value
         set: (value) ->
             @_value = value
-            @width = @_value / @max_value
+            @width = @max_width * @_value / @max_value
     
-
 window.onload = ->
     game = new Game(400, 600)
     game.fps = 60
@@ -342,7 +345,8 @@ window.onload = ->
         enemy_bullets = new Group
         add(enemy_bullets)
         
-        exp = new Gauge(0, 0, game.width, 30)
+        exp = new Gauge(0, 0, game.width, 30, 30)
+        exp.value = 0
         add(exp)
         
         player = new Player
