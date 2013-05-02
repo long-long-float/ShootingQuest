@@ -8,6 +8,8 @@ ASSETS = [
 
 game = null
 
+exp = null
+
 player = null
 
 players = null
@@ -288,6 +290,23 @@ class AimBullet extends Bullet
             [@vx, @vy] = normalize(player.rx - @rx, player.ry - @ry).map (v) => v * Math.sqrt(@vx * @vx + @vy * @vy) * 2
             @update_rotation()
 
+class Gauge extends Entity
+    constructor: (x, y, width, height, @_value) ->
+        @x = x;
+        @y = y;
+        @width = width
+        @height = height
+        @backgroundColor = '#00ff00'
+        
+        @max_value = @_value
+    
+    @property 'value',
+        get: -> @_value
+        set: (value) ->
+            @_value = value
+            @width = @_value / @max_value
+    
+
 window.onload = ->
     game = new Game(400, 600)
     game.fps = 60
@@ -323,6 +342,9 @@ window.onload = ->
         enemy_bullets = new Group
         add(enemy_bullets)
         
+        exp = new Gauge(0, 0, game.width, 30)
+        add(exp)
+        
         player = new Player
         
         #敵が出てくる場所
@@ -342,8 +364,8 @@ window.onload = ->
         shooters = [
             {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 4, 56), true, 0, 1}
             {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 4, 56), false, 0, 1}
-            {p : 1, shooter : bind_new AimStraightShooter, bind_new(AimBullet, 4, 65), true, true}
-            {p : 1, shooter : bind_new AimStraightShooter, bind_new(AimBullet, 4, 65), false, true}
+            {p : 1, shooter : bind_new AimStraightShooter, bind_new(Bullet, 4, 56), true, true}
+            {p : 1, shooter : bind_new AimStraightShooter, bind_new(Bullet, 4, 56), false, true}
             {p : 1, shooter : bind_new ShotShooter, bind_new(AimBullet, 4, 65)}
         ]
         
