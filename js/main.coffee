@@ -45,6 +45,17 @@ rand = (min, max) ->
 Array::choise = ->
     @[Math.floor(Math.random() * @length) % @length]
 
+Array::probability_choise = ->
+    sum = 0
+    sum += e.p for e in @
+    r = rand(sum) + 1
+    sum = 0
+    for e in @
+        sum += e.p
+        if r <= sum
+            return e
+    null
+    
 normalize = (x, y) ->
     len = Math.sqrt(x * x + y * y)
     [x / len, y / len]
@@ -158,9 +169,9 @@ class Player extends Material
         @core.rx = @rx
         @core.ry = @ry
         
-        if game.frame % (game.fps / 10) == 0
-            for i in [-2..2]
-                new Bullet(48, @rx + (@width / 4) * i, @ry - @height / 2, 0, -1, player_bullets, 10)
+        if game.frame % (game.fps / 15) == 0
+            for i in [-3..3]
+                new Bullet(@rx + (@width / 4) * i, @ry - @height / 2, 0, -1, player_bullets, 15, 48)
     
     ondying: ->
         remove(@core)
@@ -182,7 +193,7 @@ class Enemy extends Material
     onenterframe: ->
         super
         
-        @update_rotation() if @age % (game.fps / 4) == 0
+        @update_rotation()# if @age % (game.fps / 4) == 0
         
         if game.frame % (game.fps / 5) == 0
             @shooter.do()
@@ -198,7 +209,7 @@ class StraightMover extends Mover
         @parent.vy = vy
     
     do: ->
-        @parent.kill() unless isInWindow(@)
+        #@parent.kill() unless isInWindow(@)
 
 class AimStraightMover extends Mover
     constructor: (@parent, @v, @fixed) ->
@@ -222,7 +233,7 @@ class StraightShooter extends Shooter
         angle = to_angle(@xv, @vy) + (if way % 2 == 0 then space / 2 else space) * Math.floor(way / 2)
         for i in [1..way]
             [vx, vy] = to_vec(angle)
-            @bullet_klass(56, @parent.rx, @parent.ry, vx, vy, enemy_bullets)
+            @bullet_klass(@parent.rx, @parent.ry, vx, vy, enemy_bullets)
             angle -= space
 
 class AimStraightShooter extends Shooter
@@ -236,7 +247,7 @@ class AimStraightShooter extends Shooter
         
         for i in [1..@way]
             [vx, vy] = to_vec(angle)
-            @bullet_klass(56, @parent.rx, @parent.ry, vx, vy, enemy_bullets)
+            @bullet_klass(@parent.rx, @parent.ry, vx, vy, enemy_bullets)
             angle -= @space
     
     make_init_angle: ->
@@ -251,14 +262,12 @@ class ShotShooter extends Shooter
         angle = 0
         space = Math.PI / @level
         for i in [1..(Math.PI * 2 / space)]
-            
             [vx, vy] = to_vec(angle)
-            @bullet_klass(56, @parent.rx, @parent.ry, vx, vy, enemy_bullets)
+            @bullet_klass(@parent.rx, @parent.ry, vx, vy, enemy_bullets)
             angle -= space * Math.random() * 2
-    
 
 class Bullet extends Material
-    constructor: (frame, x, y, vx, vy, group, v) ->
+    constructor: (x, y, vx, vy, group, v, frame) ->
         super(BULLET_IMG, frame, 16, 16, 1, group)
         @rx = x
         @ry = y
@@ -292,12 +301,35 @@ window.onload = ->
         enemies = new Group
         add(enemies)
         
+        
         player_bullets = new Group
         add(player_bullets)
         enemy_bullets = new Group
         add(enemy_bullets)
         
         player = new Player
+        
+        #敵が出てくる場所
+        w = game.width
+        h = game.height
+        positions = [
+            ({p : 2, pos : [x * w / 5, -50]} for x in [0..5])...
+            {p : 1, pos : [-50, h / 4],      mover : bind_new StraightMover, 4, 0}
+            {p : 1, pos : [w + 50, h / 4], mover : bind_new StraightMover, -4, 0}
+        ]
+        #束縛
+        movers = [
+            {p : 2, mover : bind_new Mover}
+            {p : 1, mover : bind_new AimStraightMover, 4, true}
+            {p : 1, mover : bind_new AimStraightMover, 4, false}
+        ]
+        shooters = [
+            {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 2, 56), true, 0, 1}
+            {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 2, 56), false, 0, 1}
+            {p : 1, shooter : bind_new AimStraightShooter, bind_new(AimBullet, 2, 65), true, true}
+            {p : 1, shooter : bind_new AimStraightShooter, bind_new(AimBullet, 2, 65), false, true}
+            {p : 1, shooter : bind_new ShotShooter, bind_new(AimBullet, 2, 65)}
+        ]
         
         scene.onenterframe = ->
             #スイープ
@@ -306,7 +338,7 @@ window.onload = ->
                     if m?._died
                         m.group.removeChild(m)
                     
-                    if m? and m instanceof Enemy
+                    if m? and (m instanceof Enemy)# or m instanceof Bullet)
                         m.ry += 2
             
             group_sets = [[player_bullets, enemies], [enemy_bullets, players], [enemies, players]]
@@ -316,33 +348,20 @@ window.onload = ->
                         if first.hit_check(second)
                             first.attack(second)
             
-            #敵が出てくる場所
-            w = game.width
-            h = game.height
-            positions = [
-                ([x * w / 5, 0] for x in [0..5])...,
-                [0, h / 4],
-                [w, h / 4]
-            ]
-            #束縛
-            movers = [
-                bind_new Mover
-                #bind_new AimStraightMover, 4, true
-                #bind_new AimStraightMover, 4, false
-            ]
-            shooters = [
-                bind_new StraightShooter, bind_new(Bullet, 2), true, 0, 1
-                #bind_new StraightShooter, Bullet, false, 0, 1
-                #bind_new AimStraightShooter, AimBullet, true, true
-                #bind_new AimStraightShooter, bind_new(AimBullet, 2), false, true
-                #bind_new ShotShooter AimBullet
-            ]
             if game.frame % (game.fps * rand(1, 3)) == 0
                 for i in [0..rand(1, 2)]
-                    p = positions.choise()
+                    pos = positions.probability_choise()
+                    
+                    p = pos.pos
                     e = new Enemy(p[0], p[1])
-                    e.mover = movers.choise()(e)
-                    e.shooter = shooters.choise()(e, 5)
+                    
+                    mover = pos.mover
+                    if mover?
+                        e.mover = mover(e)
+                    else
+                        e.mover = movers.probability_choise().mover(e)
+                    
+                    e.shooter = shooters.probability_choise().shooter(e, 3)
             
             #十字キーによる移動
             v = 2

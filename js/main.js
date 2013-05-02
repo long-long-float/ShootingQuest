@@ -98,6 +98,26 @@
     return this[Math.floor(Math.random() * this.length) % this.length];
   };
 
+  Array.prototype.probability_choise = function() {
+    var e, r, sum, _i, _j, _len, _len1;
+
+    sum = 0;
+    for (_i = 0, _len = this.length; _i < _len; _i++) {
+      e = this[_i];
+      sum += e.p;
+    }
+    r = rand(sum) + 1;
+    sum = 0;
+    for (_j = 0, _len1 = this.length; _j < _len1; _j++) {
+      e = this[_j];
+      sum += e.p;
+      if (r <= sum) {
+        return e;
+      }
+    }
+    return null;
+  };
+
   normalize = function(x, y) {
     var len;
 
@@ -262,10 +282,10 @@
       Player.__super__.onenterframe.apply(this, arguments);
       this.core.rx = this.rx;
       this.core.ry = this.ry;
-      if (game.frame % (game.fps / 10) === 0) {
+      if (game.frame % (game.fps / 15) === 0) {
         _results = [];
-        for (i = _i = -2; _i <= 2; i = ++_i) {
-          _results.push(new Bullet(48, this.rx + (this.width / 4) * i, this.ry - this.height / 2, 0, -1, player_bullets, 10));
+        for (i = _i = -3; _i <= 3; i = ++_i) {
+          _results.push(new Bullet(this.rx + (this.width / 4) * i, this.ry - this.height / 2, 0, -1, player_bullets, 15, 48));
         }
         return _results;
       }
@@ -295,9 +315,7 @@
 
     Enemy.prototype.onenterframe = function() {
       Enemy.__super__.onenterframe.apply(this, arguments);
-      if (this.age % (game.fps / 4) === 0) {
-        this.update_rotation();
-      }
+      this.update_rotation();
       if (game.frame % (game.fps / 5) === 0) {
         this.shooter["do"]();
       }
@@ -326,11 +344,7 @@
       this.parent.vy = vy;
     }
 
-    StraightMover.prototype["do"] = function() {
-      if (!isInWindow(this)) {
-        return this.parent.kill();
-      }
-    };
+    StraightMover.prototype["do"] = function() {};
 
     return StraightMover;
 
@@ -399,7 +413,7 @@
       _results = [];
       for (i = _i = 1; 1 <= way ? _i <= way : _i >= way; i = 1 <= way ? ++_i : --_i) {
         _ref1 = to_vec(angle), vx = _ref1[0], vy = _ref1[1];
-        this.bullet_klass(56, this.parent.rx, this.parent.ry, vx, vy, enemy_bullets);
+        this.bullet_klass(this.parent.rx, this.parent.ry, vx, vy, enemy_bullets);
         _results.push(angle -= space);
       }
       return _results;
@@ -432,7 +446,7 @@
       _results = [];
       for (i = _i = 1, _ref = this.way; 1 <= _ref ? _i <= _ref : _i >= _ref; i = 1 <= _ref ? ++_i : --_i) {
         _ref1 = to_vec(angle), vx = _ref1[0], vy = _ref1[1];
-        this.bullet_klass(56, this.parent.rx, this.parent.ry, vx, vy, enemy_bullets);
+        this.bullet_klass(this.parent.rx, this.parent.ry, vx, vy, enemy_bullets);
         _results.push(angle -= this.space);
       }
       return _results;
@@ -469,7 +483,7 @@
       _results = [];
       for (i = _i = 1, _ref = Math.PI * 2 / space; 1 <= _ref ? _i <= _ref : _i >= _ref; i = 1 <= _ref ? ++_i : --_i) {
         _ref1 = to_vec(angle), vx = _ref1[0], vy = _ref1[1];
-        this.bullet_klass(56, this.parent.rx, this.parent.ry, vx, vy, enemy_bullets);
+        this.bullet_klass(this.parent.rx, this.parent.ry, vx, vy, enemy_bullets);
         _results.push(angle -= space * Math.random() * 2);
       }
       return _results;
@@ -482,7 +496,7 @@
   Bullet = (function(_super) {
     __extends(Bullet, _super);
 
-    function Bullet(frame, x, y, vx, vy, group, v) {
+    function Bullet(x, y, vx, vy, group, v, frame) {
       var _ref;
 
       Bullet.__super__.constructor.call(this, BULLET_IMG, frame, 16, 16, 1, group);
@@ -535,7 +549,7 @@
     game.fps = 60;
     game.preload(ASSETS);
     game.onload = function() {
-      var bex, bey, scene;
+      var bex, bey, h, movers, positions, scene, shooters, w, x;
 
       scene = game.rootScene;
       scene.backgroundColor = '#ffffff';
@@ -548,8 +562,60 @@
       enemy_bullets = new Group;
       add(enemy_bullets);
       player = new Player;
+      w = game.width;
+      h = game.height;
+      positions = __slice.call((function() {
+          var _i, _results;
+
+          _results = [];
+          for (x = _i = 0; _i <= 5; x = ++_i) {
+            _results.push({
+              p: 2,
+              pos: [x * w / 5, -50]
+            });
+          }
+          return _results;
+        })()).concat([{
+          p: 1,
+          pos: [-50, h / 4],
+          mover: bind_new(StraightMover, 4, 0)
+        }], [{
+          p: 1,
+          pos: [w + 50, h / 4],
+          mover: bind_new(StraightMover, -4, 0)
+        }]);
+      movers = [
+        {
+          p: 2,
+          mover: bind_new(Mover)
+        }, {
+          p: 1,
+          mover: bind_new(AimStraightMover, 4, true)
+        }, {
+          p: 1,
+          mover: bind_new(AimStraightMover, 4, false)
+        }
+      ];
+      shooters = [
+        {
+          p: 1,
+          shooter: bind_new(StraightShooter, bind_new(Bullet, 2, 56), true, 0, 1)
+        }, {
+          p: 1,
+          shooter: bind_new(StraightShooter, bind_new(Bullet, 2, 56), false, 0, 1)
+        }, {
+          p: 1,
+          shooter: bind_new(AimStraightShooter, bind_new(AimBullet, 2, 65), true, true)
+        }, {
+          p: 1,
+          shooter: bind_new(AimStraightShooter, bind_new(AimBullet, 2, 65), false, true)
+        }, {
+          p: 1,
+          shooter: bind_new(ShotShooter, bind_new(AimBullet, 2, 65))
+        }
+      ];
       scene.onenterframe = function() {
-        var e, first, group, group_set, group_sets, h, i, m, movers, p, positions, second, shooters, v, w, x, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _n, _ref1, _ref2, _ref3, _ref4, _ref5;
+        var e, first, group, group_set, group_sets, i, m, mover, p, pos, second, v, _i, _j, _k, _l, _len, _len1, _len2, _len3, _len4, _m, _n, _ref1, _ref2, _ref3, _ref4, _ref5;
 
         _ref1 = [players, enemies, player_bullets, enemy_bullets];
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
@@ -560,7 +626,7 @@
             if (m != null ? m._died : void 0) {
               m.group.removeChild(m);
             }
-            if ((m != null) && m instanceof Enemy) {
+            if ((m != null) && (m instanceof Enemy)) {
               m.ry += 2;
             }
           }
@@ -580,25 +646,18 @@
             }
           }
         }
-        w = game.width;
-        h = game.height;
-        positions = __slice.call((function() {
-            var _n, _results;
-
-            _results = [];
-            for (x = _n = 0; _n <= 5; x = ++_n) {
-              _results.push([x * w / 5, 0]);
-            }
-            return _results;
-          })()).concat([[0, h / 4]], [[w, h / 4]]);
-        movers = [bind_new(Mover)];
-        shooters = [bind_new(StraightShooter, bind_new(Bullet, 2), true, 0, 1)];
         if (game.frame % (game.fps * rand(1, 3)) === 0) {
           for (i = _n = 0, _ref5 = rand(1, 2); 0 <= _ref5 ? _n <= _ref5 : _n >= _ref5; i = 0 <= _ref5 ? ++_n : --_n) {
-            p = positions.choise();
+            pos = positions.probability_choise();
+            p = pos.pos;
             e = new Enemy(p[0], p[1]);
-            e.mover = movers.choise()(e);
-            e.shooter = shooters.choise()(e, 5);
+            mover = pos.mover;
+            if (mover != null) {
+              e.mover = mover(e);
+            } else {
+              e.mover = movers.probability_choise().mover(e);
+            }
+            e.shooter = shooters.probability_choise().shooter(e, 3);
           }
         }
         v = 2;
