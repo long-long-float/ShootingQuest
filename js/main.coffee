@@ -2,7 +2,8 @@ enchant()
 
 ASSETS = [
     PLAYER_IMG = 'player.png',
-    BULLET_IMG = 'icon0.png'
+    BULLET_IMG = 'icon0.png',
+    MAP_IMG = 'map1.png'
 ]
 
 game = null
@@ -284,7 +285,7 @@ class AimBullet extends Bullet
     onenterframe: ->
         super
         if @age == game.fps
-            [@vx, @vy] = normalize(player.rx - @rx, player.ry - @ry).map (v) => v * Math.sqrt(@vx * @vx + @vy * @vy)
+            [@vx, @vy] = normalize(player.rx - @rx, player.ry - @ry).map (v) => v * Math.sqrt(@vx * @vx + @vy * @vy) * 2
             @update_rotation()
 
 window.onload = ->
@@ -296,11 +297,26 @@ window.onload = ->
         scene = game.rootScene
         scene.backgroundColor = '#ffffff'
         
+        MOVE_VEROCITY = 4
+        
+        size = 32
+        for y in [-1..game.height / size]
+            for x in [0..game.width / size + 1]
+                floor = new Sprite(size / 2, size / 2)
+                floor.image = game.assets[MAP_IMG]
+                floor.frame = 64
+                floor.scale(2, 2)
+                floor.x = x * size
+                floor.y = y * size
+                floor.onenterframe = ->
+                    @y += MOVE_VEROCITY
+                    @y =  -size if @y >= (Math.floor(game.height / size) + 1) * size
+                add(floor)
+        
         players = new Group
         add(players)
         enemies = new Group
         add(enemies)
-        
         
         player_bullets = new Group
         add(player_bullets)
@@ -324,11 +340,11 @@ window.onload = ->
             {p : 1, mover : bind_new AimStraightMover, 4, false}
         ]
         shooters = [
-            {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 2, 56), true, 0, 1}
-            {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 2, 56), false, 0, 1}
-            {p : 1, shooter : bind_new AimStraightShooter, bind_new(AimBullet, 2, 65), true, true}
-            {p : 1, shooter : bind_new AimStraightShooter, bind_new(AimBullet, 2, 65), false, true}
-            {p : 1, shooter : bind_new ShotShooter, bind_new(AimBullet, 2, 65)}
+            {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 4, 56), true, 0, 1}
+            {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 4, 56), false, 0, 1}
+            {p : 1, shooter : bind_new AimStraightShooter, bind_new(AimBullet, 4, 65), true, true}
+            {p : 1, shooter : bind_new AimStraightShooter, bind_new(AimBullet, 4, 65), false, true}
+            {p : 1, shooter : bind_new ShotShooter, bind_new(AimBullet, 4, 65)}
         ]
         
         scene.onenterframe = ->
@@ -339,7 +355,7 @@ window.onload = ->
                         m.group.removeChild(m)
                     
                     if m? and (m instanceof Enemy)# or m instanceof Bullet)
-                        m.ry += 2
+                        m.y += MOVE_VEROCITY
             
             group_sets = [[player_bullets, enemies], [enemy_bullets, players], [enemies, players]]
             for group_set in group_sets
