@@ -57,7 +57,7 @@ to_angle = (x, y) ->
         if y >= 0 then Math.PI else 0
 
 to_angle_material = (mat1, mat2) ->
-    to_angle(mat2.rx - mat1.rx, mat2.ry - mat1.ry)
+    to_angle((mat2.x + mat2.width / 2) - (mat1.x + mat1.width / 2), (mat2.y + mat2.height / 2) - (mat1.y + mat1.height / 2))
 
 to_vec = (angle) ->
     [Math.cos(angle - Math.PI / 2), Math.sin(angle - Math.PI / 2)]
@@ -69,7 +69,9 @@ remove = (node) ->
     game.currentScene.removeChild(node)
 
 isInWindow = (material) ->
-    0 <= material.rx < game.width and 0 <= material.ry < game.height
+    x = material.x + material.width / 2
+    y = material.y + material.height / 2
+    0 <= x < game.width and 0 <= y < game.height
 
 intoWindow = (material) ->
     material.rx = 0 if material.rx < 0
@@ -93,10 +95,14 @@ class Material extends Sprite
         
         @vx = 0
         @vy = 0
+        
+        @_died = false
     
     damage: (material) ->
         @hp -= material.power
-        @hp = 0 if @hp <= 0
+        if @hp <= 0
+            @hp = 0
+            @kill()
     
     attack: (material) ->
         material.damage(@)
@@ -110,23 +116,29 @@ class Material extends Sprite
         get: -> @y + @height / 2
         set: (y) -> @y = y - @height / 2
     
+    kill: ->
+        @_died = true
+        @ondying()
+    
     ondying: ->
     
     hit_check: (material) ->
-        rdist = Math.pow(@rx - material.rx, 2) + Math.pow(@ry - material.ry, 2)
-        dist = Math.pow(@rradius + material.rradius, 2)
+        dx = (@x + @width / 2) - (material.x + material.width / 2)
+        dy = (@y + @height / 2) - (material.y + material.height / 2)
+        rdist = dx * dx + dy * dy
+        dr = @rradius + material.rradius
+        dist = dr * dr
         (rdist <= dist)
     
     onenterframe: ->
-        @rx += @vx
-        @ry += @vy
+        @x += @vx
+        @y += @vy
     
     update_rotation: ->
-        if @age % (game.fps / 4) == 0
-            @rotation = if @vx == 0 and @vy == 0
-                    180
-                else
-                    to_angle(@vx, @vy) / Math.PI * 180
+        @rotation = if @vx == 0 and @vy == 0
+                180
+            else
+                to_angle(@vx, @vy) / Math.PI * 180
 
 class Player extends Material
     constructor: ->
@@ -165,10 +177,12 @@ class Enemy extends Material
         @mover = new Mover
         @shooter = new Shooter
         
+        @update_rotation()
+        
     onenterframe: ->
         super
         
-        @update_rotation()
+        @update_rotation() if @age % (game.fps / 4) == 0
         
         if game.frame % (game.fps / 5) == 0
             @shooter.do()
@@ -184,7 +198,7 @@ class StraightMover extends Mover
         @parent.vy = vy
     
     do: ->
-        @hp = 0 unless isInWindow(@)
+        @parent.kill() unless isInWindow(@)
 
 class AimStraightMover extends Mover
     constructor: (@parent, @v, @fixed) ->
@@ -207,7 +221,7 @@ class StraightShooter extends Shooter
         space = Math.PI / @level
         angle = to_angle(@xv, @vy) + (if way % 2 == 0 then space / 2 else space) * Math.floor(way / 2)
         for i in [1..way]
-            [vx, vy] = to_vec(angle).map (e) -> e * 6
+            [vx, vy] = to_vec(angle)
             @bullet_klass(56, @parent.rx, @parent.ry, vx, vy, enemy_bullets)
             angle -= space
 
@@ -221,9 +235,8 @@ class AimStraightShooter extends Shooter
         angle = if @fixed then @fixed_angle else @make_init_angle()
         
         for i in [1..@way]
-            #ここどうすんねんΣ(-o-)
-            [vx, vy] = to_vec(angle).map (e) -> e * 6
-            new @bullet_klass(56, @parent.rx, @parent.ry, vx, vy, enemy_bullets)
+            [vx, vy] = to_vec(angle)
+            @bullet_klass(56, @parent.rx, @parent.ry, vx, vy, enemy_bullets)
             angle -= @space
     
     make_init_angle: ->
@@ -239,7 +252,7 @@ class ShotShooter extends Shooter
         space = Math.PI / @level
         for i in [1..(Math.PI * 2 / space)]
             
-            [vx, vy] = to_vec(angle).map (e) -> e * 2
+            [vx, vy] = to_vec(angle)
             @bullet_klass(56, @parent.rx, @parent.ry, vx, vy, enemy_bullets)
             angle -= space * Math.random() * 2
     
@@ -252,16 +265,18 @@ class Bullet extends Material
         
         [@vx, @vy] = normalize(vx, vy).map (e) -> e * v
         
+        @update_rotation()
+        
     onenterframe: ->
         super 
-        @update_rotation()
-        @hp = 0 unless isInWindow(@)
+        @kill() unless isInWindow(@)
         
 class AimBullet extends Bullet
     onenterframe: ->
         super
         if @age == game.fps
             [@vx, @vy] = normalize(player.rx - @rx, player.ry - @ry).map (v) => v * Math.sqrt(@vx * @vx + @vy * @vy)
+            @update_rotation()
 
 window.onload = ->
     game = new Game(400, 600)
@@ -288,8 +303,7 @@ window.onload = ->
             #スイープ
             for group in [players, enemies, player_bullets, enemy_bullets]
                 for m in group.childNodes
-                    if m?.hp <= 0
-                        m.ondying()
+                    if m?._died
                         m.group.removeChild(m)
                     
                     if m? and m instanceof Enemy
@@ -333,13 +347,13 @@ window.onload = ->
             #十字キーによる移動
             v = 2
             if game.input.up
-                player.ry -= v
+                player.y -= v
             if game.input.down
-                player.ry += v
+                player.y += v
             if game.input.left
-                player.rx -= v
+                player.x -= v
             if game.input.right
-                player.rx += v
+                player.x += v
             
             intoWindow(player)
         
@@ -349,8 +363,8 @@ window.onload = ->
             bey = e.y
         
         scene.ontouchmove = (e) ->
-            player.rx += e.x - bex
-            player.ry += e.y - bey
+            player.x += e.x - bex
+            player.y += e.y - bey
             
             bex = e.x
             bey = e.y

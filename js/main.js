@@ -121,7 +121,7 @@
   };
 
   to_angle_material = function(mat1, mat2) {
-    return to_angle(mat2.rx - mat1.rx, mat2.ry - mat1.ry);
+    return to_angle((mat2.x + mat2.width / 2) - (mat1.x + mat1.width / 2), (mat2.y + mat2.height / 2) - (mat1.y + mat1.height / 2));
   };
 
   to_vec = function(angle) {
@@ -137,9 +137,11 @@
   };
 
   isInWindow = function(material) {
-    var _ref, _ref1;
+    var x, y;
 
-    return (0 <= (_ref = material.rx) && _ref < game.width) && (0 <= (_ref1 = material.ry) && _ref1 < game.height);
+    x = material.x + material.width / 2;
+    y = material.y + material.height / 2;
+    return (0 <= x && x < game.width) && (0 <= y && y < game.height);
   };
 
   intoWindow = function(material) {
@@ -175,12 +177,14 @@
       this.power = 1;
       this.vx = 0;
       this.vy = 0;
+      this._died = false;
     }
 
     Material.prototype.damage = function(material) {
       this.hp -= material.power;
       if (this.hp <= 0) {
-        return this.hp = 0;
+        this.hp = 0;
+        return this.kill();
       }
     };
 
@@ -207,25 +211,31 @@
       }
     });
 
+    Material.prototype.kill = function() {
+      this._died = true;
+      return this.ondying();
+    };
+
     Material.prototype.ondying = function() {};
 
     Material.prototype.hit_check = function(material) {
-      var dist, rdist;
+      var dist, dr, dx, dy, rdist;
 
-      rdist = Math.pow(this.rx - material.rx, 2) + Math.pow(this.ry - material.ry, 2);
-      dist = Math.pow(this.rradius + material.rradius, 2);
+      dx = (this.x + this.width / 2) - (material.x + material.width / 2);
+      dy = (this.y + this.height / 2) - (material.y + material.height / 2);
+      rdist = dx * dx + dy * dy;
+      dr = this.rradius + material.rradius;
+      dist = dr * dr;
       return rdist <= dist;
     };
 
     Material.prototype.onenterframe = function() {
-      this.rx += this.vx;
-      return this.ry += this.vy;
+      this.x += this.vx;
+      return this.y += this.vy;
     };
 
     Material.prototype.update_rotation = function() {
-      if (this.age % (game.fps / 4) === 0) {
-        return this.rotation = this.vx === 0 && this.vy === 0 ? 180 : to_angle(this.vx, this.vy) / Math.PI * 180;
-      }
+      return this.rotation = this.vx === 0 && this.vy === 0 ? 180 : to_angle(this.vx, this.vy) / Math.PI * 180;
     };
 
     return Material;
@@ -280,11 +290,14 @@
       this.hp = 10;
       this.mover = new Mover;
       this.shooter = new Shooter;
+      this.update_rotation();
     }
 
     Enemy.prototype.onenterframe = function() {
       Enemy.__super__.onenterframe.apply(this, arguments);
-      this.update_rotation();
+      if (this.age % (game.fps / 4) === 0) {
+        this.update_rotation();
+      }
       if (game.frame % (game.fps / 5) === 0) {
         this.shooter["do"]();
       }
@@ -315,7 +328,7 @@
 
     StraightMover.prototype["do"] = function() {
       if (!isInWindow(this)) {
-        return this.hp = 0;
+        return this.parent.kill();
       }
     };
 
@@ -385,9 +398,7 @@
       angle = to_angle(this.xv, this.vy) + (way % 2 === 0 ? space / 2 : space) * Math.floor(way / 2);
       _results = [];
       for (i = _i = 1; 1 <= way ? _i <= way : _i >= way; i = 1 <= way ? ++_i : --_i) {
-        _ref1 = to_vec(angle).map(function(e) {
-          return e * 6;
-        }), vx = _ref1[0], vy = _ref1[1];
+        _ref1 = to_vec(angle), vx = _ref1[0], vy = _ref1[1];
         this.bullet_klass(56, this.parent.rx, this.parent.ry, vx, vy, enemy_bullets);
         _results.push(angle -= space);
       }
@@ -420,10 +431,8 @@
       angle = this.fixed ? this.fixed_angle : this.make_init_angle();
       _results = [];
       for (i = _i = 1, _ref = this.way; 1 <= _ref ? _i <= _ref : _i >= _ref; i = 1 <= _ref ? ++_i : --_i) {
-        _ref1 = to_vec(angle).map(function(e) {
-          return e * 6;
-        }), vx = _ref1[0], vy = _ref1[1];
-        new this.bullet_klass(56, this.parent.rx, this.parent.ry, vx, vy, enemy_bullets);
+        _ref1 = to_vec(angle), vx = _ref1[0], vy = _ref1[1];
+        this.bullet_klass(56, this.parent.rx, this.parent.ry, vx, vy, enemy_bullets);
         _results.push(angle -= this.space);
       }
       return _results;
@@ -459,9 +468,7 @@
       space = Math.PI / this.level;
       _results = [];
       for (i = _i = 1, _ref = Math.PI * 2 / space; 1 <= _ref ? _i <= _ref : _i >= _ref; i = 1 <= _ref ? ++_i : --_i) {
-        _ref1 = to_vec(angle).map(function(e) {
-          return e * 2;
-        }), vx = _ref1[0], vy = _ref1[1];
+        _ref1 = to_vec(angle), vx = _ref1[0], vy = _ref1[1];
         this.bullet_klass(56, this.parent.rx, this.parent.ry, vx, vy, enemy_bullets);
         _results.push(angle -= space * Math.random() * 2);
       }
@@ -484,13 +491,13 @@
       _ref = normalize(vx, vy).map(function(e) {
         return e * v;
       }), this.vx = _ref[0], this.vy = _ref[1];
+      this.update_rotation();
     }
 
     Bullet.prototype.onenterframe = function() {
       Bullet.__super__.onenterframe.apply(this, arguments);
-      this.update_rotation();
       if (!isInWindow(this)) {
-        return this.hp = 0;
+        return this.kill();
       }
     };
 
@@ -512,9 +519,10 @@
 
       AimBullet.__super__.onenterframe.apply(this, arguments);
       if (this.age === game.fps) {
-        return _ref1 = normalize(player.rx - this.rx, player.ry - this.ry).map(function(v) {
+        _ref1 = normalize(player.rx - this.rx, player.ry - this.ry).map(function(v) {
           return v * Math.sqrt(_this.vx * _this.vx + _this.vy * _this.vy);
-        }), this.vx = _ref1[0], this.vy = _ref1[1], _ref1;
+        }), this.vx = _ref1[0], this.vy = _ref1[1];
+        return this.update_rotation();
       }
     };
 
@@ -549,8 +557,7 @@
           _ref2 = group.childNodes;
           for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
             m = _ref2[_j];
-            if ((m != null ? m.hp : void 0) <= 0) {
-              m.ondying();
+            if (m != null ? m._died : void 0) {
               m.group.removeChild(m);
             }
             if ((m != null) && m instanceof Enemy) {
@@ -596,16 +603,16 @@
         }
         v = 2;
         if (game.input.up) {
-          player.ry -= v;
+          player.y -= v;
         }
         if (game.input.down) {
-          player.ry += v;
+          player.y += v;
         }
         if (game.input.left) {
-          player.rx -= v;
+          player.x -= v;
         }
         if (game.input.right) {
-          player.rx += v;
+          player.x += v;
         }
         return intoWindow(player);
       };
@@ -615,8 +622,8 @@
         return bey = e.y;
       };
       return scene.ontouchmove = function(e) {
-        player.rx += e.x - bex;
-        player.ry += e.y - bey;
+        player.x += e.x - bex;
+        player.y += e.y - bey;
         bex = e.x;
         return bey = e.y;
       };
