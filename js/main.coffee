@@ -18,6 +18,8 @@ enemies = null
 player_bullets = null
 enemy_bullets = null
 
+level = 1
+
 Function::property = (prop, desc) ->
     Object.defineProperty @prototype, prop, desc
 
@@ -59,9 +61,11 @@ Array::probability_choise = ->
             return e
     null
     
-normalize = (x, y) ->
-    len = Math.sqrt(x * x + y * y)
-    [x / len, y / len]
+normalize = ->
+    sum = 0
+    sum += i * i for i in arguments
+    len = Math.sqrt(sum)
+    (i / len for i in arguments)
 
 to_angle = (x, y) ->
     ret = Math.atan2(y, x) + Math.PI / 2
@@ -173,7 +177,7 @@ class Player extends Material
         @core.ry = @ry
         
         if game.frame % (game.fps / 15) == 0
-            for i in [-3..3]
+            for i in [-level..level]
                 new Bullet(@rx + (@width / 4) * i, @ry - @height / 2, 0, -1, player_bullets, 15, 48)
     
     ondying: ->
@@ -204,7 +208,7 @@ class Enemy extends Material
         @mover.do()
     
     ondying: ->
-        exp.value += 1
+        exp.add(1)
         
 class Mover
     do: ->
@@ -219,13 +223,16 @@ class StraightMover extends Mover
 
 class AimStraightMover extends Mover
     constructor: (@parent, @v, @fixed) ->
-        @set_velocity() if @fixed
+        if @fixed
+            [@parent.vx, @parent.vy] = normalize(player.rx - @parent.rx, player.ry - @parent.ry).map (v) => v * @v
 
     do: ->
-        @set_velocity() unless @fixed
-
-    set_velocity: ->
-        [@parent.vx, @parent.vy] = normalize(player.rx - @parent.rx, player.ry - @parent.ry).map (v) => v * @v
+        unless @fixed
+            angle = now_angle = to_angle(@parent.vx, @parent.vy)
+            goal_angle = to_angle_material(@parent, player)
+            angle += normalize(goal_angle - now_angle)
+            [@parent.vx, @parent.vy] = to_vec(angle).map (v) => v * @v
+            alert [@parent.vx, @parent.vy]
         
 class Shooter
     do: ->
@@ -310,6 +317,14 @@ class Gauge extends Entity
             @_value = value
             @width = @max_width * @_value / @max_value
     
+    add: (value) ->
+        @value += value
+        if @value >= @max_value
+            @value = 0
+            @onmax()
+    
+    onmax: ->
+    
 window.onload = ->
     game = new Game(400, 600)
     game.fps = 60
@@ -347,7 +362,9 @@ window.onload = ->
         
         exp = new Gauge(0, 0, game.width, 30, 30)
         exp.value = 0
-        add(exp)
+        exp.onmax = ->
+            level += 1
+        #add(exp)
         
         player = new Player
         
@@ -363,7 +380,7 @@ window.onload = ->
         movers = [
             {p : 2, mover : bind_new Mover}
             {p : 1, mover : bind_new AimStraightMover, 4, true}
-            {p : 1, mover : bind_new AimStraightMover, 4, false}
+            {p : 6, mover : bind_new AimStraightMover, 4, false}
         ]
         shooters = [
             {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 4, 56), true, 0, 1}
@@ -403,10 +420,10 @@ window.onload = ->
                     else
                         e.mover = movers.probability_choise().mover(e)
                     
-                    e.shooter = shooters.probability_choise().shooter(e, 3)
+                    e.shooter = shooters.probability_choise().shooter(e, level)
             
             #十字キーによる移動
-            v = 2
+            v = 4
             if game.input.up
                 player.y -= v
             if game.input.down
