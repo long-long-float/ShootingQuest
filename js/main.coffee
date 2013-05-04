@@ -18,7 +18,14 @@ enemies = null
 player_bullets = null
 enemy_bullets = null
 
+level_label = null
+
 level = 1
+increment_level = ->
+    level++
+    level_label.count++
+
+MOVE_VEROCITY = 1
 
 Function::property = (prop, desc) ->
     Object.defineProperty @prototype, prop, desc
@@ -105,6 +112,7 @@ class Material extends Sprite
         super(width, height)
         @image = game.assets[img_name]
         @frame = frame
+        #@scale(2, 2)
         
         @group.addChild(@)
         
@@ -161,7 +169,6 @@ class Material extends Sprite
 class Player extends Material
     constructor: ->
         super(PLAYER_IMG, 27, 32, 32, 1, players)
-        @scale(2, 2)
         @rx = game.width / 2
         @ry = game.height / 3 * 2
         
@@ -178,15 +185,15 @@ class Player extends Material
         
         if game.frame % (game.fps / 15) == 0
             for i in [-level..level]
-                new Bullet(@rx + (@width / 4) * i, @ry - @height / 2, 0, -1, player_bullets, 15, 48)
+                new Bullet(@rx + (@width / 4) * i, @ry - @height / 2, 0, -1, player_bullets, 10, 48)
     
     ondying: ->
         remove(@core)
+        game.end(level, "レベル#{level}")
         
 class Enemy extends Material
     constructor: (x, y) ->
         super(PLAYER_IMG, 0, 32, 32, 16, enemies)
-        @scale(2, -2)
         @rx = x
         @ry = y
         
@@ -206,33 +213,35 @@ class Enemy extends Material
             @shooter.do()
         
         @mover.do()
+        
+        @kill() if @ry > game.height
     
     ondying: ->
         exp.add(1)
         
 class Mover
+    constructor: (@parent) ->
     do: ->
+        @parent.ry += MOVE_VEROCITY
 
 class StraightMover extends Mover
     constructor: (@parent, vx, vy)->
         @parent.vx = vx
         @parent.vy = vy
-    
-    do: ->
-        #@parent.kill() unless isInWindow(@)
-
+        
 class AimStraightMover extends Mover
     constructor: (@parent, @v, @fixed) ->
         if @fixed
             [@parent.vx, @parent.vy] = normalize(player.rx - @parent.rx, player.ry - @parent.ry).map (v) => v * @v
-
+        else
+            @parent.vy = 1
+        
     do: ->
         unless @fixed
             angle = now_angle = to_angle(@parent.vx, @parent.vy)
             goal_angle = to_angle_material(@parent, player)
-            angle += normalize(goal_angle - now_angle)
+            angle += normalize(goal_angle - now_angle) * Math.PI / 300
             [@parent.vx, @parent.vy] = to_vec(angle).map (v) => v * @v
-            alert [@parent.vx, @parent.vy]
         
 class Shooter
     do: ->
@@ -324,17 +333,33 @@ class Gauge extends Entity
             @onmax()
     
     onmax: ->
-    
+
+class CountLabel extends Label
+    constructor: (x, y) ->
+        super
+        @x = x
+        @y = y
+        @color = '#ffffff'
+        @font = "bold 20px Arial"
+
+        @_count = 0
+
+        @label = ''
+
+    @property 'count',
+        get: -> @_count
+        set: (c) ->
+            @_count = c
+            @text = "#{@label}#{@_count}"
+
 window.onload = ->
-    game = new Game(400, 600)
+    game = new Game(320, 320)
     game.fps = 60
     game.preload(ASSETS)
     
     game.onload = ->
         scene = game.rootScene
         scene.backgroundColor = '#ffffff'
-        
-        MOVE_VEROCITY = 4
         
         size = 32
         for y in [-1..game.height / size]
@@ -360,11 +385,15 @@ window.onload = ->
         enemy_bullets = new Group
         add(enemy_bullets)
         
-        exp = new Gauge(0, 0, game.width, 30, 30)
+        exp = new Gauge(0, 0, game.width, 10, 30)
         exp.value = 0
-        exp.onmax = ->
-            level += 1
-        #add(exp)
+        exp.onmax = -> increment_level()
+        add(exp)
+        
+        level_label = new CountLabel(0, game.height - 30)
+        level_label.label = 'Level : '
+        level_label.count = 0
+        add(level_label)
         
         player = new Player
         
@@ -372,22 +401,22 @@ window.onload = ->
         w = game.width
         h = game.height
         positions = [
-            ({p : 2, pos : [x * w / 5, -50]} for x in [0..5])...
-            {p : 1, pos : [-50, h / 4],      mover : bind_new StraightMover, 4, 0}
-            {p : 1, pos : [w + 50, h / 4], mover : bind_new StraightMover, -4, 0}
+            ({p : 2, pos : [x * w / 5, -50]} for x in [1..4])...
+            {p : 1, pos : [-50, h / 4],      mover : bind_new StraightMover, 2, 0}
+            {p : 1, pos : [w + 50, h / 4], mover : bind_new StraightMover, -2, 0}
         ]
         #束縛
         movers = [
             {p : 2, mover : bind_new Mover}
             {p : 1, mover : bind_new AimStraightMover, 4, true}
-            {p : 6, mover : bind_new AimStraightMover, 4, false}
+            {p : 1, mover : bind_new AimStraightMover, 2, false}
         ]
         shooters = [
-            {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 4, 56), true, 0, 1}
-            {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 4, 56), false, 0, 1}
-            {p : 1, shooter : bind_new AimStraightShooter, bind_new(Bullet, 4, 56), true, true}
-            {p : 1, shooter : bind_new AimStraightShooter, bind_new(Bullet, 4, 56), false, true}
-            {p : 1, shooter : bind_new ShotShooter, bind_new(AimBullet, 4, 65)}
+            {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 2, 56), true, 0, 1}
+            {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 2, 56), false, 0, 1}
+            {p : 1, shooter : bind_new AimStraightShooter, bind_new(Bullet, 2, 56), true, true}
+            {p : 1, shooter : bind_new AimStraightShooter, bind_new(Bullet, 2, 56), false, true}
+            {p : 1, shooter : bind_new ShotShooter, bind_new(AimBullet, 2, 65)}
         ]
         
         scene.onenterframe = ->
@@ -396,9 +425,6 @@ window.onload = ->
                 for m in group.childNodes
                     if m?._died
                         m.group.removeChild(m)
-                    
-                    if m? and (m instanceof Enemy)# or m instanceof Bullet)
-                        m.y += MOVE_VEROCITY
             
             group_sets = [[player_bullets, enemies], [enemy_bullets, players], [enemies, players]]
             for group_set in group_sets
