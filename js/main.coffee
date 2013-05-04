@@ -8,7 +8,7 @@ ASSETS = [
 
 game = null
 
-exp = null
+exp_gauge = null
 
 player = null
 
@@ -184,12 +184,15 @@ class Player extends Material
         @core.ry = @ry
         
         if game.frame % (game.fps / 15) == 0
-            for i in [-level..level]
+            n = Math.floor(level / 2)
+            for i in [-n..n]
                 new Bullet(@rx + (@width / 4) * i, @ry - @height / 2, 0, -1, player_bullets, 10, 48)
     
     ondying: ->
         remove(@core)
-        game.end(level, "レベル#{level}")
+        exp = level * exp_gauge.value
+        #game.end(exp, "経験値:#{exp} レベル:#{level}")
+        alert("経験値:#{exp} レベル:#{level}")
         
 class Enemy extends Material
     constructor: (x, y) ->
@@ -214,10 +217,10 @@ class Enemy extends Material
         
         @mover.do()
         
-        @kill() if @ry > game.height
+        enemies.removeChild(@) if @ry > game.height
     
     ondying: ->
-        exp.add(1)
+        exp_gauge.add(1)
         
 class Mover
     constructor: (@parent) ->
@@ -385,14 +388,16 @@ window.onload = ->
         enemy_bullets = new Group
         add(enemy_bullets)
         
-        exp = new Gauge(0, 0, game.width, 10, 30)
-        exp.value = 0
-        exp.onmax = -> increment_level()
-        add(exp)
+        exp_gauge = new Gauge(0, 0, game.width, 10, 10)
+        exp_gauge.value = 0
+        exp_gauge.onmax = ->
+            increment_level()
+            @max_value = Math.floor(@max_value * 1.3)
+        add(exp_gauge)
         
         level_label = new CountLabel(0, game.height - 30)
         level_label.label = 'Level : '
-        level_label.count = 0
+        level_label.count = 1
         add(level_label)
         
         player = new Player
@@ -433,8 +438,8 @@ window.onload = ->
                         if first.hit_check(second)
                             first.attack(second)
             
-            if game.frame % (game.fps * rand(1, 3)) == 0
-                for i in [0..rand(1, 2)]
+            if game.frame % (game.fps * 3) == 0
+                for i in [1..Math.max(level, 2)]
                     pos = positions.probability_choise()
                     
                     p = pos.pos
