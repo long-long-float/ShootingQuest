@@ -318,7 +318,7 @@
 
     Player.prototype.ondying = function() {
       remove(this.core);
-      return alert("経験値:" + exp + " レベル:" + level);
+      return game.end(exp, "経験値:" + exp + " レベル:" + level);
     };
 
     return Player;

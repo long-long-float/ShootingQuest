@@ -193,8 +193,8 @@ class Player extends Material
     
     ondying: ->
         remove(@core)
-        #game.end(exp, "経験値:#{exp} レベル:#{level}")
-        alert("経験値:#{exp} レベル:#{level}")
+        game.end(exp, "経験値:#{exp} レベル:#{level}")
+        #alert("経験値:#{exp} レベル:#{level}")
         
 class Enemy extends Material
     constructor: (x, y) ->
