@@ -3,7 +3,8 @@ enchant()
 ASSETS = [
     PLAYER_IMG = 'player.png',
     BULLET_IMG = 'icon0.png',
-    MAP_IMG = 'map1.png'
+    MAP_IMG = 'map1.png',
+    FLOOR_IMG = 'floor.png'
 ]
 
 game = null
@@ -24,6 +25,8 @@ level = 1
 increment_level = ->
     level++
     level_label.count++
+
+exp = 0
 
 MOVE_VEROCITY = 1
 
@@ -190,7 +193,6 @@ class Player extends Material
     
     ondying: ->
         remove(@core)
-        exp = level * exp_gauge.value
         #game.end(exp, "経験値:#{exp} レベル:#{level}")
         alert("経験値:#{exp} レベル:#{level}")
         
@@ -221,6 +223,7 @@ class Enemy extends Material
     
     ondying: ->
         exp_gauge.add(1)
+        exp++
         
 class Mover
     constructor: (@parent) ->
@@ -362,15 +365,13 @@ window.onload = ->
     
     game.onload = ->
         scene = game.rootScene
-        scene.backgroundColor = '#ffffff'
+        scene.backgroundColor = '#808080'
         
-        size = 32
+        size = 320
         for y in [-1..game.height / size]
             for x in [0..game.width / size + 1]
-                floor = new Sprite(size / 2, size / 2)
-                floor.image = game.assets[MAP_IMG]
-                floor.frame = 64
-                floor.scale(2, 2)
+                floor = new Sprite(size, size)
+                floor.image = game.assets[FLOOR_IMG]
                 floor.x = x * size
                 floor.y = y * size
                 floor.onenterframe = ->
@@ -438,7 +439,7 @@ window.onload = ->
                         if first.hit_check(second)
                             first.attack(second)
             
-            if game.frame % (game.fps * 3) == 0
+            if game.frame % (game.fps * 2) == 0
                 for i in [1..Math.max(level, 2)]
                     pos = positions.probability_choise()
                     
