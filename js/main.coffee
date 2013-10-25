@@ -305,7 +305,7 @@ class Bullet extends Material
         @update_rotation()
         
     onenterframe: ->
-        super 
+        super()
         @kill() unless isInWindow(@)
         
 class AimBullet extends Bullet
@@ -318,8 +318,8 @@ class AimBullet extends Bullet
 class Gauge extends Entity
     constructor: (x, y, width, height, @_value) ->
         super
-        @x = x;
-        @y = y;
+        @x = x
+        @y = y
         @width = @max_width = width
         @height = height
         @backgroundColor = '#00ff00'
