@@ -358,6 +358,13 @@ class CountLabel extends Label
             @_count = c
             @text = "#{@label}#{@_count}"
 
+# for leap motion
+leapX = leapY = 0
+Leap.loop (frame) ->
+    if frame.fingers.length > 0
+        [leapX, leapY] = frame.fingers[0].tipPosition
+        console.log leapY
+
 window.onload = ->
     game = new Game(320, 320)
     game.fps = 60
@@ -464,6 +471,9 @@ window.onload = ->
                 player.x -= v
             if game.input.right
                 player.x += v
+
+            player.x = (leapX + 100) / 200 * game.width
+            player.y = game.height - (leapY - 50) / 250 * game.height
             
             intoWindow(player)
         
