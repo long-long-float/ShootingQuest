@@ -83,10 +83,10 @@ to_angle_material = (mat1, mat2) ->
   to_angle((mat2.x + mat2.width / 2) - (mat1.x + mat1.width / 2), (mat2.y + mat2.height / 2) - (mat1.y + mat1.height / 2))
 
 to_vec = (angle) ->
-    [Math.cos(angle - Math.PI / 2), Math.sin(angle - Math.PI / 2)]
+  [Math.cos(angle - Math.PI / 2), Math.sin(angle - Math.PI / 2)]
 
 add = (node) ->
-    game.currentScene.addChild(node)
+  game.currentScene.addChild(node)
 
 remove = (node) ->
   game.currentScene.removeChild(node)
@@ -187,9 +187,13 @@ class Player extends Material
     @core.ry = @ry
 
     if game.frame % (game.fps / 15) == 0
-      n = Math.floor(@level / 2)
-      for i in [-n..n]
-        new Bullet(@rx + (@width / 4) * i, @ry - @height / 2, 0, -1, player_bullets, 10, 48)
+      way = Math.min(10, @level * 2 - 1)
+      space = (Math.PI / 3) / (way - 1)
+      angle = if way == 1 then 0 else -(Math.PI / 3) / 2
+      for i in [1..way]
+        [vx, vy] = to_vec(angle)
+        new Bullet(@rx, @ry - @height / 2, vx, vy, player_bullets, 10, 48)
+        angle += space
 
   ondying: ->
     remove(@core)
@@ -259,7 +263,7 @@ class StraightShooter extends Shooter
   do: ->
     way = (@odd_way ? 1 : 0) + @level * 2
     space = Math.PI / @level
-    angle = to_angle(@xv, @vy) + (if way % 2 == 0 then space / 2 else space) * Math.floor(way / 2)
+    angle = to_angle(@vx, @vy) + (if way % 2 == 0 then space / 2 else space) * Math.floor(way / 2)
     for i in [1..way]
       [vx, vy] = to_vec(angle)
       new @bullet_klass(@parent.rx, @parent.ry, vx, vy, enemy_bullets)
