@@ -429,7 +429,7 @@ window.onload = ->
       {p : 1, shooter : bind_new StraightShooter, bind_new(Bullet, 2, 56), false, 0, 1}
       {p : 1, shooter : bind_new AimStraightShooter, bind_new(Bullet, 2, 56), true, true}
       {p : 1, shooter : bind_new AimStraightShooter, bind_new(Bullet, 2, 56), false, true}
-      {p : 1, shooter : bind_new ShotShooter, bind_new(AimBullet, 2, 65)}
+      {p : 1, shooter : bind_new ShotShooter, bind_new(AimBullet, 2, 66)}
     ]
 
     scene.onenterframe = ->
