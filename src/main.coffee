@@ -2,6 +2,7 @@ enchant()
 
 ASSETS = [
   PLAYER_IMG = 'player.png',
+  ENEMY_IMG  = 'enemy.png',
   BULLET_IMG = 'icon0.png',
   MAP_IMG    = 'map1.png',
   FLOOR_IMG  = 'floor.png'
@@ -203,7 +204,7 @@ class Player extends Material
 
 class Enemy extends Material
   constructor: (x, y) ->
-    super(PLAYER_IMG, 0, 32, 32, 16, enemies)
+    super(ENEMY_IMG, 0, 32, 32, 16, enemies)
     @rx = x
     @ry = y
 
