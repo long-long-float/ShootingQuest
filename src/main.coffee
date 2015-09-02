@@ -21,11 +21,6 @@ enemy_bullets = null
 
 level_label = null
 
-level = 10
-increment_level = ->
-  level++
-  level_label.count++
-
 exp = 0
 
 MOVE_VEROCITY = 1
@@ -180,6 +175,11 @@ class Player extends Material
     @core.rx = @rx
     @core.ry = @ry
 
+    @level = 1
+
+  level_up: ->
+    @level++
+
   onenterframe: ->
     super
 
@@ -187,14 +187,14 @@ class Player extends Material
     @core.ry = @ry
 
     if game.frame % (game.fps / 15) == 0
-      n = Math.floor(level / 2)
+      n = Math.floor(@level / 2)
       for i in [-n..n]
         new Bullet(@rx + (@width / 4) * i, @ry - @height / 2, 0, -1, player_bullets, 10, 48)
 
   ondying: ->
     remove(@core)
     #game.end(exp, "経験値:#{exp} レベル:#{level}")
-    alert("経験値:#{exp} レベル:#{level}")
+    alert("経験値:#{exp} レベル:#{@level}")
     location.reload()
 
 class Enemy extends Material
@@ -382,6 +382,9 @@ window.onload = ->
 
     players = new Group
     add(players)
+
+    player = new Player
+
     enemies = new Group
     add(enemies)
 
@@ -390,19 +393,18 @@ window.onload = ->
     enemy_bullets = new Group
     add(enemy_bullets)
 
+    level_label = new CountLabel(0, game.height - 30)
+    level_label.label = 'Level : '
+    level_label.count = player.level
+    add(level_label)
+
     exp_gauge = new Gauge(0, 0, game.width, 10, 10)
     exp_gauge.value = 0
     exp_gauge.onmax = ->
-      increment_level()
+      player.level_up()
+      level_label.count += 1
       @max_value = Math.floor(@max_value * 1.3)
     add(exp_gauge)
-
-    level_label = new CountLabel(0, game.height - 30)
-    level_label.label = 'Level : '
-    level_label.count = 1
-    add(level_label)
-
-    player = new Player
 
     #敵が出てくる場所
     w = game.width
@@ -447,7 +449,7 @@ window.onload = ->
               first.attack(second)
 
       if game.frame % (game.fps * 2) == 0
-        for i in [1..Math.max(level, 2)]
+        for i in [1..Math.max(player.level, 2)]
           pos = positions.probability_choise()
 
           p = pos.pos
@@ -459,7 +461,7 @@ window.onload = ->
           else
             e.mover = movers.probability_choise().mover(e)
 
-          e.shooter = shooters.probability_choise().shooter(e, level)
+          e.shooter = shooters.probability_choise().shooter(e, player.level)
 
       #十字キーによる移動
       v = 4

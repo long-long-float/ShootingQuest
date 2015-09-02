@@ -1,18 +1,6 @@
 {
-  "name": "comet-js",
+  "name": "ShootingQuest",
   "version": "1.0.0",
-  "description": "COMMET II Virtual Machine",
-  "main": "comet.js",
-  "directories": {
-    "test": "test"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git@bitbucket.org:long_long_float/comet-js.git"
-  },
   "author": "long_long_float",
   "devDependencies": {
     "coffee-script": "^1.9.3",
