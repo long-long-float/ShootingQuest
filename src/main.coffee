@@ -210,14 +210,14 @@ class Player extends Material
     location.reload()
 
 class Enemy extends Material
-  constructor: (x, y) ->
-    super(ENEMY_IMG, 0, 32, 32, 16, enemies)
+  constructor: (image, frame, width, height, rradius, x, y) ->
+    super(image, frame, width, height, rradius, enemies)
     @rx = x
     @ry = y
 
     @hp = 10
 
-    @mover = new Mover
+    @mover = new Mover(@)
     @shooter = new Shooter
 
     @update_rotation()
@@ -241,9 +241,14 @@ class Enemy extends Material
     exp_gauge.add(1)
     exp++
 
+    rx = @rx
+    ry = @ry
     @state = MATERIAL_STATES.DYING
     @width = 16
     @height = 16
+    @scale(@rradius / (@width * 2) * 4, @rradius / (@height * 2) * 4)
+    @rx = rx
+    @ry = ry
     @_died = false
     @image = game.assets[EXPLODE_IMG]
     @frame = 0
@@ -254,6 +259,14 @@ class Enemy extends Material
       40: => @frame++
       50: => @_died = true
     )
+
+class Soldier extends Enemy
+  constructor: (x, y) ->
+    super(ENEMY_IMG, 0, 32, 32, 16, x, y)
+
+class Dragon extends Enemy
+  constructor: (x, y) ->
+    super(DRAGON_IMG, 0, 80, 64, 30, x, y)
 
 class Mover
   constructor: (@parent) ->
@@ -486,7 +499,7 @@ window.onload = ->
           pos = positions.probability_choise()
 
           p = pos.pos
-          e = new Enemy(p[0], p[1])
+          e = new Soldier(p[0], p[1])
 
           mover = pos.mover
           if mover?
@@ -495,6 +508,10 @@ window.onload = ->
             e.mover = movers.probability_choise().mover(e)
 
           e.shooter = shooters.probability_choise().shooter(e, player.level)
+
+      if game.frame % (game.fps * 5) == 0
+        d = new Dragon(game.width / 2, 0)
+        d.shooter = new AimStraightShooter(d, player.level)
 
       #十字キーによる移動
       v = 4
