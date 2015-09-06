@@ -10,6 +10,11 @@ ASSETS = [
   FLOOR_IMG  = 'floor.png'
 ]
 
+MATERIAL_STATES = {
+  LIVING: 0
+  DYING:  1
+}
+
 game = null
 
 exp_gauge = null
@@ -217,21 +222,38 @@ class Enemy extends Material
 
     @update_rotation()
 
+    @state = MATERIAL_STATES.LIVING
+
   onenterframe: ->
-    super
+    if @state != MATERIAL_STATES.DYING
+      super
 
-    @update_rotation()# if @age % (game.fps / 4) == 0
+      @update_rotation()# if @age % (game.fps / 4) == 0
 
-    if game.frame % (game.fps / 5) == 0
-      @shooter.do()
+      if game.frame % (game.fps / 5) == 0
+        @shooter.do()
 
-    @mover.do()
+      @mover.do()
 
     enemies.removeChild(@) if @ry > game.height
 
   ondying: ->
     exp_gauge.add(1)
     exp++
+
+    @state = MATERIAL_STATES.DYING
+    @width = 16
+    @height = 16
+    @_died = false
+    @image = game.assets[EXPLODE_IMG]
+    @frame = 0
+    @tl.cue(
+      10: => @frame++
+      20: => @frame++
+      30: => @frame++
+      40: => @frame++
+      50: => @_died = true
+    )
 
 class Mover
   constructor: (@parent) ->
@@ -445,7 +467,11 @@ window.onload = ->
       group_sets = [[player_bullets, enemies], [enemy_bullets, players], [enemies, players]]
       for group_set in group_sets
         for first in group_set[0].childNodes
+          continue if first.state == MATERIAL_STATES.DYING
+
           for second in group_set[1].childNodes
+            continue if second.state == MATERIAL_STATES.DYING
+
             dx = (first.x + first.width / 2) - (second.x + second.width / 2)
             dy = (first.y + first.height / 2) - (second.y + second.height / 2)
             rdist = dx * dx + dy * dy
