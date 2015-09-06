@@ -511,7 +511,7 @@ window.onload = ->
 
       if game.frame % (game.fps * 5) == 0
         d = new Dragon(game.width / 2, 0)
-        d.shooter = new AimStraightShooter(d, player.level)
+        d.shooter = new AimStraightShooter(d, player.level, bind_new(Bullet, 2, 56), true, false)
 
       #十字キーによる移動
       v = 4
