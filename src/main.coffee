@@ -3,6 +3,8 @@ enchant()
 ASSETS = [
   PLAYER_IMG = 'player.png',
   ENEMY_IMG  = 'enemy.png',
+  DRAGON_IMG = 'dragon.png',
+  EXPLODE_IMG= 'explode.png',
   BULLET_IMG = 'icon0.png',
   MAP_IMG    = 'map1.png',
   FLOOR_IMG  = 'floor.png'
