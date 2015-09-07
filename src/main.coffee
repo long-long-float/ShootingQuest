@@ -300,17 +300,18 @@ class StraightShooter extends Shooter
 
   do: ->
     way = (@odd_way ? 1 : 0) + @level * 2
-    space = Math.PI / @level
-    angle = to_angle(@vx, @vy) + (if way % 2 == 0 then space / 2 else space) * Math.floor(way / 2)
+    space = (Math.PI / 3) / (way - 1)
+    angle = to_angle(@vx, @vy) + (if way == 1 then 0 else -(Math.PI / 3) / 2) #(if way % 2 == 0 then space / 2 else space) * Math.floor(way / 2)
     for i in [1..way]
       [vx, vy] = to_vec(angle)
+      console.log [vx, vy]
       new @bullet_klass(@parent.rx, @parent.ry, vx, vy, enemy_bullets)
-      angle -= space
+      angle += space
 
 class AimStraightShooter extends Shooter
   constructor: (@parent, @level, @bullet_klass, @odd_way, @fixed) ->
-    @px = player.rx
-    @py = player.ry
+    @way = (@odd_way ? 1 : 0) + @level * 2
+    @space = (Math.PI / 3) / (@way - 1)
     @fixed_angle = @make_init_angle() if @fixed
 
   do: ->
@@ -319,12 +320,10 @@ class AimStraightShooter extends Shooter
     for i in [1..@way]
       [vx, vy] = to_vec(angle)
       new @bullet_klass(@parent.rx, @parent.ry, vx, vy, enemy_bullets)
-      angle -= @space
+      angle += @space
 
   make_init_angle: ->
-    @way = (@odd_way ? 1 : 0) + @level * 2
-    @space = Math.PI / @level
-    to_angle(@px - @parent.rx, @py - @parent.ry) + (if @way % 2 == 0 then @space / 2 else @space) * Math.floor(@way / 2)
+    to_angle(player.rx - @parent.rx, player.ry - @parent.ry) + (if @way == 1 then 0 else -(Math.PI / 3) / 2)
 
 class ShotShooter extends Shooter
   constructor: (@parent, @level, @bullet_klass) ->
@@ -333,9 +332,9 @@ class ShotShooter extends Shooter
     angle = 0
     space = Math.PI / @level
     for i in [1..(Math.PI * 2 / space)]
+      angle -= space * Math.random() * 2
       [vx, vy] = to_vec(angle)
       new @bullet_klass(@parent.rx, @parent.ry, vx, vy, enemy_bullets)
-      angle -= space * Math.random() * 2
 
 class Bullet extends Material
   constructor: (x, y, vx, vy, group, v, frame) ->
@@ -511,7 +510,7 @@ window.onload = ->
 
       if game.frame % (game.fps * 5) == 0
         d = new Dragon(game.width / 2, 0)
-        d.shooter = new AimStraightShooter(d, player.level, bind_new(Bullet, 2, 56), true, false)
+        d.shooter = new AimStraightShooter(d, player.level + 3, bind_new(Bullet, 2, 56), true, false)
 
       #十字キーによる移動
       v = 4
