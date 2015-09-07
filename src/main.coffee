@@ -27,6 +27,8 @@ enemies = null
 player_bullets = null
 enemy_bullets = null
 
+floors = null
+
 level_label = null
 
 exp = 0
@@ -92,6 +94,13 @@ to_angle_material = (mat1, mat2) ->
 
 to_vec = (angle) ->
   [Math.cos(angle - Math.PI / 2), Math.sin(angle - Math.PI / 2)]
+
+enchant.Timeline::forloop = (interval, count, fun) ->
+  arg = {}
+  for i in [1...count]
+    arg[i * interval] = fun
+  @cue(arg)
+  return @
 
 add = (node) ->
   game.currentScene.addChild(node)
@@ -252,13 +261,7 @@ class Enemy extends Material
     @_died = false
     @image = game.assets[EXPLODE_IMG]
     @frame = 0
-    @tl.cue(
-      10: => @frame++
-      20: => @frame++
-      30: => @frame++
-      40: => @frame++
-      50: => @_died = true
-    )
+    @tl.forloop(10, 5, => @frame++).then(=> @_died = true)
 
 class Soldier extends Enemy
   constructor: (x, y) ->
@@ -267,6 +270,16 @@ class Soldier extends Enemy
 class Dragon extends Enemy
   constructor: (x, y) ->
     super(DRAGON_IMG, 0, 80, 64, 30, x, y)
+
+  ondying: ->
+    super
+
+    # ステージを揺らす
+    cues = {}
+    for i in [1...20] by 2
+      cues[i * 5] = -> floors.moveBy(rand(-20, 20), rand(-20, 20))
+      cues[i * 5 + 5] = -> floors.moveTo(0, 0)
+    floors.tl.cue(cues)
 
 class Mover
   constructor: (@parent) ->
@@ -304,7 +317,6 @@ class StraightShooter extends Shooter
     angle = to_angle(@vx, @vy) + (if way == 1 then 0 else -(Math.PI / 3) / 2) #(if way % 2 == 0 then space / 2 else space) * Math.floor(way / 2)
     for i in [1..way]
       [vx, vy] = to_vec(angle)
-      console.log [vx, vy]
       new @bullet_klass(@parent.rx, @parent.ry, vx, vy, enemy_bullets)
       angle += space
 
@@ -407,8 +419,11 @@ window.onload = ->
 
   game.onload = ->
     scene = game.rootScene
-    scene.backgroundColor = '#808080'
+    scene.backgroundColor = '#000'
 
+    # 床
+    floors = new Group
+    add(floors)
     size = 320
     for y in [-1..game.height / size]
       for x in [0..game.width / size + 1]
@@ -419,7 +434,8 @@ window.onload = ->
         floor.onenterframe = ->
           @y += MOVE_VEROCITY
           @y =  -size if @y >= (Math.floor(game.height / size) + 1) * size
-        add(floor)
+        #add(floor)
+        floors.addChild(floor)
 
     players = new Group
     add(players)
