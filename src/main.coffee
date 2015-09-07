@@ -274,6 +274,9 @@ class Dragon extends Enemy
   ondying: ->
     super
 
+    for bullet in enemy_bullets.childNodes
+      bullet._died = true
+
     # ステージを揺らす
     cues = {}
     for i in [1...20] by 2
