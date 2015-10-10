@@ -315,7 +315,7 @@ class StraightShooter extends Shooter
   constructor: (@parent, @level, @bullet_klass, @odd_way, @vx, @vy) ->
 
   do: ->
-    way = (@odd_way ? 1 : 0) + @level * 2
+    way = (if @odd_way then 1 else 0) + @level
     space = (Math.PI / 3) / (way - 1)
     angle = to_angle(@vx, @vy) + (if way == 1 then 0 else -(Math.PI / 3) / 2) #(if way % 2 == 0 then space / 2 else space) * Math.floor(way / 2)
     for i in [1..way]
@@ -325,7 +325,7 @@ class StraightShooter extends Shooter
 
 class AimStraightShooter extends Shooter
   constructor: (@parent, @level, @bullet_klass, @odd_way, @fixed) ->
-    @way = (@odd_way ? 1 : 0) + @level * 2
+    @way = (if @odd_way then 1 else 0) + @level
     @space = (Math.PI / 3) / (@way - 1)
     @fixed_angle = @make_init_angle() if @fixed
 
@@ -345,7 +345,7 @@ class ShotShooter extends Shooter
 
   do: ->
     angle = 0
-    space = Math.PI / @level
+    space = Math.PI / @level * 3
     for i in [1..(Math.PI * 2 / space)]
       angle -= space * Math.random() * 2
       [vx, vy] = to_vec(angle)
@@ -532,7 +532,7 @@ window.onload = ->
         d.shooter = new AimStraightShooter(d, player.level + 3, bind_new(Bullet, 2, 56), true, false)
 
       #十字キーによる移動
-      v = 4
+      v = 2
       if game.input.up
         player.y -= v
       if game.input.down
