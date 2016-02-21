@@ -39,4 +39,4 @@ gulp.task('watch', function() {
   gulp.watch('src/*.coffee', ['coffee']);
 });
 
-gulp.task('default', ['coffee', 'server', 'watch']);
+gulp.task('default', ['coffee']);
